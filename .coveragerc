@@ -1,0 +1,6 @@
+[run]
+branch = True
+source = watcher-tempest-plugin
+
+[report]
+ignore_errors = True
