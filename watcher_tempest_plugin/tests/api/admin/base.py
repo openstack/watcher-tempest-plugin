@@ -47,6 +47,7 @@ class BaseInfraOptimTest(test.BaseTestCase):
     def setup_clients(cls):
         super(BaseInfraOptimTest, cls).setup_clients()
         cls.client = cls.mgr.io_client
+        cls.gnocchi = cls.mgr.gn_client
 
     @classmethod
     def resource_setup(cls):
@@ -185,6 +186,19 @@ class BaseInfraOptimTest(test.BaseTestCase):
         return resp, body
 
     @classmethod
+    def update_audit(cls, audit_uuid, patch):
+        """Update an audit with proposed patch
+
+        :param audit_uuid: The unique identifier of the audit.
+        :param patch: List of dicts representing json patches.
+        :return: A tuple with The HTTP response and its body
+        """
+        resp, body = cls.client.update_audit(
+            audit_uuid=audit_uuid, patch=patch)
+
+        return resp, body
+
+    @classmethod
     def delete_audit(cls, audit_uuid):
         """Deletes an audit having the specified UUID
 
@@ -212,6 +226,11 @@ class BaseInfraOptimTest(test.BaseTestCase):
     def is_audit_idle(cls, audit_uuid):
         _, audit = cls.client.show_audit(audit_uuid)
         return audit.get('state') in cls.IDLE_STATES
+
+    @classmethod
+    def is_audit_ongoing(cls, audit_uuid):
+        _, audit = cls.client.show_audit(audit_uuid)
+        return audit.get('state') == 'ONGOING'
 
     # ### ACTION PLANS ### #
 

@@ -136,7 +136,7 @@ class BaseInfraOptimClient(rest_client.RestClient):
 
         return resp, self.deserialize(body)
 
-    def _create_request(self, resource, object_dict):
+    def _create_request(self, resource, object_dict, headers=None):
         """Create an object of the specified type.
 
         :param resource: The name of the REST resource, e.g., 'audits'.
@@ -149,12 +149,12 @@ class BaseInfraOptimClient(rest_client.RestClient):
         body = self.serialize(object_dict)
         uri = self._get_uri(resource)
 
-        resp, body = self.post(uri, body=body)
-        self.expected_success(201, int(resp['status']))
+        resp, body = self.post(uri, body=body, headers=headers)
+        self.expected_success([200, 201, 202], int(resp['status']))
 
         return resp, self.deserialize(body)
 
-    def _delete_request(self, resource, uuid):
+    def _delete_request(self, resource, uuid, headers=None):
         """Delete specified object.
 
         :param resource: The name of the REST resource, e.g., 'audits'.
@@ -164,7 +164,7 @@ class BaseInfraOptimClient(rest_client.RestClient):
 
         uri = self._get_uri(resource, uuid)
 
-        resp, body = self.delete(uri)
+        resp, body = self.delete(uri, headers=headers)
         self.expected_success(204, int(resp['status']))
         return resp, body
 

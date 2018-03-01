@@ -22,6 +22,7 @@ from tempest.common import credentials_factory as creds_factory
 from tempest import config
 
 from watcher_tempest_plugin.services.infra_optim.v1.json import client as ioc
+from watcher_tempest_plugin.services.metric.v1.json import client as gc
 
 CONF = config.CONF
 
@@ -33,6 +34,8 @@ class BaseManager(clients.Manager):
         super(BaseManager, self).__init__(credentials)
         self.io_client = ioc.InfraOptimClientJSON(
             self.auth_provider, 'infra-optim', CONF.identity.region)
+        self.gn_client = gc.GnocchiClientJSON(
+            self.auth_provider, 'metric', CONF.identity.region)
 
 
 class AdminManager(BaseManager):

@@ -74,6 +74,18 @@ class TestCreateUpdateDeleteAudit(base.BaseInfraOptimTest):
         _, audit = self.client.show_audit(body['uuid'])
         self.assert_expected(audit, body)
 
+        _, audit = self.update_audit(
+            body['uuid'],
+            [{'op': 'replace', 'path': '/state', 'value': 'CANCELLED'}]
+        )
+
+        test_utils.call_until_true(
+            func=functools.partial(
+                self.is_audit_idle, body['uuid']),
+            duration=10,
+            sleep_for=.5
+        )
+
     @decorators.attr(type='smoke')
     def test_create_audit_with_wrong_audit_template(self):
         audit_params = dict(
@@ -118,6 +130,37 @@ class TestCreateUpdateDeleteAudit(base.BaseInfraOptimTest):
         self.assertIn(initial_audit_state, self.audit_states)
 
         self.assert_expected(audit, body)
+
+    @decorators.attr(type='smoke')
+    def test_update_audit(self):
+        _, goal = self.client.show_goal("dummy")
+        _, audit_template = self.create_audit_template(goal['uuid'])
+        audit_params = dict(
+            audit_template_uuid=audit_template['uuid'],
+            audit_type='CONTINUOUS',
+            interval='7200',
+        )
+
+        _, body = self.create_audit(**audit_params)
+        audit_uuid = body['uuid']
+        test_utils.call_until_true(
+            func=functools.partial(
+                self.is_audit_ongoing, audit_uuid),
+            duration=10,
+            sleep_for=.5
+        )
+
+        _, audit = self.update_audit(
+            audit_uuid,
+            [{'op': 'replace', 'path': '/state', 'value': 'CANCELLED'}]
+        )
+
+        test_utils.call_until_true(
+            func=functools.partial(
+                self.is_audit_idle, audit_uuid),
+            duration=10,
+            sleep_for=.5
+        )
 
     @decorators.attr(type='smoke')
     def test_delete_audit(self):

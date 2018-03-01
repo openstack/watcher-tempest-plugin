@@ -68,7 +68,7 @@ class InfraOptimClientJSON(base.BaseInfraOptimClient):
 
         parameters = {k: v for k, v in kwargs.items() if v is not None}
         # This name is unique to avoid the DB unique constraint on names
-        unique_name = 'Tempest Audit Template %s' % uuidutils.generate_uuid()
+        unique_name = 'W_AT-%s' % uuidutils.generate_uuid()
 
         audit_template = {
             'name': parameters.get('name', unique_name),

@@ -143,10 +143,11 @@ class TestExecuteActionsViaActuator(base.BaseInfraOptimScenarioTest):
         for _ in compute_nodes[:CONF.compute.min_compute_nodes]:
             # by getting to active state here, this means this has
             # landed on the host in question.
-            created_servers.append(
-                self.create_server(image_id=CONF.compute.image_ref,
-                                   wait_until='ACTIVE',
-                                   clients=self.mgr))
+            instance = self.create_server(image_id=CONF.compute.image_ref,
+                                          wait_until='ACTIVE',
+                                          clients=self.mgr)
+            created_servers.append(instance)
+            self.make_instance_statistic(instance)
 
         return created_servers
 

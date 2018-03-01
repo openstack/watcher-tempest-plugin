@@ -18,13 +18,17 @@
 
 from __future__ import unicode_literals
 
+import functools
+import random
 import time
 
+from datetime import datetime
+from datetime import timedelta
 from oslo_log import log
 from tempest import config
-from tempest import exceptions
 from tempest.lib.common.utils import data_utils
 from tempest.lib.common.utils import test_utils
+from tempest.lib import exceptions
 
 from watcher_tempest_plugin import infra_optim_clients as clients
 from watcher_tempest_plugin.tests.scenario import manager
@@ -51,6 +55,7 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
     def setup_clients(cls):
         super(BaseInfraOptimScenarioTest, cls).setup_clients()
         cls.client = cls.mgr.io_client
+        cls.gnocchi = cls.mgr.gn_client
 
     @classmethod
     def resource_setup(cls):
@@ -88,6 +93,113 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
             duration=300,
             sleep_for=5
         )
+
+    # ### GNOCCHI ### #
+
+    def create_resource(self, **kwargs):
+        """Wrapper utility for creating a test resource
+
+        :return: A tuple with The HTTP response and its body
+        """
+        try:
+            resp, body = self.gnocchi.create_resource(**kwargs)
+        except exceptions.Conflict:
+            # if resource already exists we just request it
+            search_body = {"=": {"original_resource_id": kwargs['id']}}
+            resp, body = self.gnocchi.search_resource(**search_body)
+            body = body[0]
+            if body['metrics'].get('cpu_util'):
+                self.gnocchi.delete_metric(body['metrics']['cpu_util'])
+                metric_body = {
+                    "archive_policy_name": "bool",
+                    "resource_id": body['id'],
+                    "name": "cpu_util"
+                }
+                self.gnocchi.create_metric(**metric_body)
+                resp, body = self.gnocchi.search_resource(**search_body)
+                body = body[0]
+        return resp, body
+
+    def add_measures(self, metric_uuid, body):
+        """Wrapper utility for creating a test measures for metric
+
+        :param metric_uuid: The unique identifier of the metric
+        :return: A tuple with The HTTP response and empty body
+        """
+        resp, body = self.gnocchi.add_measures(metric_uuid, body)
+        return resp, body
+
+    def _make_measures(self, measures_count, time_step):
+        measures_body = []
+        for i in range(1, measures_count + 1):
+            dt = datetime.utcnow() - timedelta(minutes=i * time_step)
+            measures_body.append(
+                dict(value=random.randint(10, 20),
+                     timestamp=dt.replace(microsecond=0).isoformat())
+            )
+        return measures_body
+
+    def make_host_statistic(self):
+        """Create host resource and its measures in Gnocchi DB"""
+        hypervisors_client = self.mgr.hypervisor_client
+        hypervisors = hypervisors_client.list_hypervisors(
+            detail=True)['hypervisors']
+        for h in hypervisors:
+            host_name = "%s_%s" % (h['hypervisor_hostname'],
+                                   h['hypervisor_hostname'])
+            resource_params = {
+                'type': 'host',
+                'metrics': {
+                    'compute.node.cpu.percent': {
+                        'archive_policy_name': 'bool'
+                    }
+                },
+                'host_name': host_name,
+                'id': host_name
+            }
+            _, res = self.create_resource(**resource_params)
+            metric_uuid = res['metrics']['compute.node.cpu.percent']
+            self.add_measures(metric_uuid, self._make_measures(3, 5))
+
+    def _show_measures(self, metric_uuid):
+        try:
+            _, res = self.gnocchi.show_measures(metric_uuid)
+        except Exception:
+            return False
+        if len(res) > 0:
+            return True
+
+    def make_instance_statistic(self, instance):
+        """Create instance resource and its measures in Gnocchi DB
+
+        :param instance: Instance response body
+        """
+        flavor = self.flavors_client.show_flavor(instance['flavor']['id'])
+        flavor_name = flavor['flavor']['name']
+        resource_params = {
+            'type': 'instance',
+            'metrics': {
+                'cpu_util': {
+                    'archive_policy_name': 'bool'
+                }
+            },
+            'host': instance.get('OS-EXT-SRV-ATTR:hypervisor_hostname'),
+            'display_name': instance.get('OS-EXT-SRV-ATTR:instance_name'),
+            'image_ref': instance['image']['id'],
+            'flavor_id': instance['flavor']['id'],
+            'flavor_name': flavor_name,
+            'id': instance['id']
+        }
+        _, res = self.create_resource(**resource_params)
+        metric_uuid = res['metrics']['cpu_util']
+        self.add_measures(metric_uuid, self._make_measures(3, 5))
+
+        self.assertTrue(test_utils.call_until_true(
+            func=functools.partial(
+                self._show_measures, metric_uuid),
+            duration=600,
+            sleep_for=2
+        ))
 
     # ### AUDIT TEMPLATES ### #
 
@@ -183,3 +295,12 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
         _, action_plan = self.client.show_action_plan(action_plan_uuid)
         return action_plan.get('state') in ('FAILED', 'SUCCEEDED', 'CANCELLED',
                                             'SUPERSEDED')
+
+    def has_action_plans_finished(self):
+        _, action_plans = self.client.list_action_plans()
+        for ap in action_plans['action_plans']:
+            _, action_plan = self.client.show_action_plan(ap['uuid'])
+            if action_plan.get('state') not in ('FAILED', 'SUCCEEDED',
+                                                'CANCELLED', 'SUPERSEDED'):
+                return False
+        return True

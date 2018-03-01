@@ -39,6 +39,14 @@ class TestExecuteDummyStrategy(base.BaseInfraOptimScenarioTest):
         """
         _, goal = self.client.show_goal("dummy")
         _, audit_template = self.create_audit_template(goal['uuid'])
+
+        self.assertTrue(test_utils.call_until_true(
+            func=functools.partial(
+                self.has_action_plans_finished),
+            duration=600,
+            sleep_for=2
+        ))
+
         _, audit = self.create_audit(audit_template['uuid'])
 
         self.assertTrue(test_utils.call_until_true(

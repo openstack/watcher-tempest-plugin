@@ -141,9 +141,12 @@ class TestExecuteWorkloadBalancingStrategy(base.BaseInfraOptimScenarioTest):
         for _ in compute_nodes[:CONF.compute.min_compute_nodes]:
             # by getting to active state here, this means this has
             # landed on the host in question.
-            created_instances.append(
-                self.create_server(image_id=CONF.compute.image_ref,
-                                   wait_until='ACTIVE', clients=self.mgr))
+            instance = self.create_server(image_id=CONF.compute.image_ref,
+                                          wait_until='ACTIVE',
+                                          clients=self.mgr)
+            created_instances.append(instance)
+            self.make_instance_statistic(instance)
+
         return created_instances
 
     def _pack_all_created_instances_on_one_host(self, instances):
@@ -160,17 +163,29 @@ class TestExecuteWorkloadBalancingStrategy(base.BaseInfraOptimScenarioTest):
         self.addCleanup(self.rollback_compute_nodes_status)
         instances = self._create_one_instance_per_host()
         self._pack_all_created_instances_on_one_host(instances)
+        self.make_host_statistic()
 
         audit_parameters = {
             "metrics": ["cpu_util"],
             "thresholds": {"cpu_util": 0.2},
             "weights": {"cpu_util_weight": 1.0},
-            "instance_metrics": {"cpu_util": "compute.node.cpu.percent"}}
+            "periods": {"instance": 72000, "node": 60000},
+            "instance_metrics": {"cpu_util": "compute.node.cpu.percent"},
+            "granularity": 1,
+            "aggregation_method": {"instance": "last", "node": "last"}}
 
         _, goal = self.client.show_goal(self.GOAL)
         _, strategy = self.client.show_strategy("workload_stabilization")
         _, audit_template = self.create_audit_template(
             goal['uuid'], strategy=strategy['uuid'])
+
+        self.assertTrue(test_utils.call_until_true(
+            func=functools.partial(
+                self.has_action_plans_finished),
+            duration=600,
+            sleep_for=2
+        ))
+
         _, audit = self.create_audit(
             audit_template['uuid'], parameters=audit_parameters)
 
