@@ -9,9 +9,9 @@ Please fill here a long description which must be at least 3 lines wrapped on
 Note that this is a hard requirement.
 
 * Free software: Apache license
-* Documentation: http://docs.openstack.org/developer/watcher-tempest-plugin
-* Source: http://git.openstack.org/cgit/openstack/watcher-tempest-plugin
-* Bugs: http://bugs.launchpad.net/Tempest plugin watcher-tempest-plugin
+* Documentation: https://docs.openstack.org/watcher/latest/ plugin watcher-tempest-plugin
+* Source: https://git.openstack.org/cgit/openstack/watcher-tempest-plugin
+* Bugs: https://bugs.launchpad.net/watcher plugin watcher-tempest-plugin
 
 Features
 --------
