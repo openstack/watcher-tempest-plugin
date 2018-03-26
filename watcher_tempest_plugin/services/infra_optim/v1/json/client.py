@@ -16,10 +16,10 @@
 
 from oslo_serialization import jsonutils
 from oslo_utils import uuidutils
-from watcher_tempest_plugin.services.infra_optim import base
+from watcher_tempest_plugin.services import base
 
 
-class InfraOptimClientJSON(base.BaseInfraOptimClient):
+class InfraOptimClientJSON(base.BaseClient):
     """Base Tempest REST client for Watcher API v1."""
 
     URI_PREFIX = 'v1'

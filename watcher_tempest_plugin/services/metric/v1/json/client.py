@@ -16,10 +16,10 @@
 
 
 from oslo_serialization import jsonutils
-from watcher_tempest_plugin.services.infra_optim import base
+from watcher_tempest_plugin.services import base
 
 
-class GnocchiClientJSON(base.BaseInfraOptimClient):
+class GnocchiClientJSON(base.BaseClient):
     """Base Tempest REST client for Gnocchi API v1."""
 
     URI_PREFIX = 'v1'

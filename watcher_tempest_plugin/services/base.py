@@ -44,19 +44,19 @@ def handle_errors(f):
 
 
 @six.add_metaclass(abc.ABCMeta)
-class BaseInfraOptimClient(rest_client.RestClient):
-    """Base Tempest REST client for Watcher API."""
+class BaseClient(rest_client.RestClient):
+    """Base Tempest REST client for API."""
 
     URI_PREFIX = ''
 
     @abc.abstractmethod
     def serialize(self, object_dict):
-        """Serialize an Watcher object."""
+        """Serialize an object."""
         raise NotImplementedError()
 
     @abc.abstractmethod
     def deserialize(self, object_str):
-        """Deserialize an Watcher object."""
+        """Deserialize an object."""
         raise NotImplementedError()
 
     def _get_uri(self, resource_name, uuid=None, permanent=False):
@@ -186,7 +186,7 @@ class BaseInfraOptimClient(rest_client.RestClient):
 
     @handle_errors
     def get_api_description(self):
-        """Retrieves all versions of the Watcher API."""
+        """Retrieves all versions of the API."""
 
         return self._list_request('', permanent=True)
 
