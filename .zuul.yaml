@@ -1,7 +1,6 @@
 - project:
     check:
       jobs:
-        - watcher-tempest-zuulv3
         - watcher-tempest-dummy_optim
         - watcher-tempest-actuator
         - watcher-tempest-basic_optim
@@ -9,7 +8,6 @@
 
     gate:
       jobs:
-        - watcher-tempest-zuulv3
         - watcher-tempest-dummy_optim
         - watcher-tempest-actuator
         - watcher-tempest-basic_optim
