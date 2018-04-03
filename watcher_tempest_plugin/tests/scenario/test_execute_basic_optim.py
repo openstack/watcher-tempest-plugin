@@ -183,11 +183,6 @@ class TestExecuteBasicStrategy(base.BaseInfraOptimScenarioTest):
 
         _, action_plan = self.client.show_action_plan(action_plan['uuid'])
 
-        if action_plan['state'] in ('RECOMMENDED'):
-            # It is temporary solution to get test passed. This if statement
-            # should be removed once this job got zuulv3 support.
-            return
-
         if action_plan['state'] in ('SUPERSEDED', 'SUCCEEDED'):
             # This means the action plan is superseded so we cannot trigger it,
             # or it is empty.
