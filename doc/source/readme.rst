@@ -125,23 +125,23 @@ Watcher Tempest tests execution
 To list all Watcher Tempest cases, you can issue the following commands::
 
     $ cd <TEMPEST_DIR>
-    $ testr list-tests watcher
+    $ tempest run --list-tests --regex watcher_tempest_plugin
 
 To run only these tests in Tempest, you can then issue these commands::
 
-    $ ./run_tempest.sh --config watcher-cloud/etc/tempest.conf -N -- watcher
+    $ tempest run --config-file watcher-cloud/etc/tempest.conf --regex watcher_tempest_plugin
 
 Or alternatively the following commands if you are::
 
     $ cd <TEMPEST_DIR>/watcher-cloud
-    $ ../run_tempest.sh -N -- watcher
+    $ tempest run --regex watcher_tempest_plugin
 
 To run a single test case, go to Tempest directory, then run with test case
 name, e.g.::
 
     $ cd <TEMPEST_DIR>
-    $ ./run_tempest.sh --config watcher-cloud/etc/tempest.conf -N \
-        -- watcher_tempest_plugin.tests.api.admin.test_audit_template.TestCreateDeleteAuditTemplate.test_create_audit_template
+    $ tempest run --config-file watcher-cloud/etc/tempest.conf --regex \
+        watcher_tempest_plugin.tests.api.admin.test_audit_template.TestCreateDeleteAuditTemplate.test_create_audit_template
 
 Alternatively, you can also run the Watcher Tempest plugin tests using tox. But
 before you can do so, you need to follow the Tempest explanation on running
