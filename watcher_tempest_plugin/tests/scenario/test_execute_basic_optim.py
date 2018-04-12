@@ -125,7 +125,10 @@ class TestExecuteBasicStrategy(base.BaseInfraOptimScenarioTest):
                 name="instance-%d" % idx,
                 image_id=CONF.compute.image_ref,
                 wait_until='ACTIVE',
-                clients=self.mgr)
+                clients=self.os_primary)
+            # get instance object again as admin
+            instance = self.mgr.servers_client.show_server(
+                instance['id'])['server']
             self.make_instance_statistic(instance)
 
     def test_execute_basic_action_plan(self):

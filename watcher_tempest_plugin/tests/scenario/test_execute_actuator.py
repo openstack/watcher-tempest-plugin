@@ -145,7 +145,10 @@ class TestExecuteActionsViaActuator(base.BaseInfraOptimScenarioTest):
             # landed on the host in question.
             instance = self.create_server(image_id=CONF.compute.image_ref,
                                           wait_until='ACTIVE',
-                                          clients=self.mgr)
+                                          clients=self.os_primary)
+            # get instance object again as admin
+            instance = self.mgr.servers_client.show_server(
+                instance['id'])['server']
             created_servers.append(instance)
             self.make_instance_statistic(instance)
 
