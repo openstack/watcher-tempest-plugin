@@ -6,6 +6,7 @@
         - watcher-tempest-actuator
         - watcher-tempest-basic_optim
         - watcher-tempest-workload_balancing
+        - watcher-tempest-zone_migration
 
     gate:
       jobs:
@@ -14,4 +15,10 @@
         - watcher-tempest-actuator
         - watcher-tempest-basic_optim
         - watcher-tempest-workload_balancing
+        - watcher-tempest-zone_migration
 
+- job:
+    name: watcher-tempest-zone_migration
+    parent: watcher-tempest-multinode
+    vars:
+      tempest_test_regex: 'watcher_tempest_plugin.tests.scenario.test_execute_zone_migration'
