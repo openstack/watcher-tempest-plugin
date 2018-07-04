@@ -127,6 +127,7 @@ class TestCreateUpdateDeleteAudit(base.BaseInfraOptimTest):
         _, audit = self.client.show_audit(body['uuid'])
 
         initial_audit_state = audit.pop('state')
+        del audit['hostname']
         self.assertIn(initial_audit_state, self.audit_states)
 
         self.assert_expected(audit, body)
@@ -219,11 +220,14 @@ class TestShowListAudit(base.BaseInfraOptimTest):
 
         initial_audit = self.audit.copy()
         del initial_audit['state']
+        del initial_audit['hostname']
         audit_state = audit['state']
         actual_audit = audit.copy()
         del actual_audit['state']
 
         self.assertIn(audit_state, self.audit_states)
+        self.assertIsNotNone(actual_audit['hostname'])
+        del actual_audit['hostname']
         self.assert_expected(initial_audit, actual_audit)
 
     @decorators.attr(type='smoke')

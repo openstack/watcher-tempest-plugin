@@ -110,14 +110,14 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
             body = body[0]
             if body['metrics'].get('cpu_util'):
                 self.gnocchi.delete_metric(body['metrics']['cpu_util'])
-                metric_body = {
-                    "archive_policy_name": "bool",
-                    "resource_id": body['id'],
-                    "name": "cpu_util"
-                }
-                self.gnocchi.create_metric(**metric_body)
-                resp, body = self.gnocchi.search_resource(**search_body)
-                body = body[0]
+            metric_body = {
+                "archive_policy_name": "bool",
+                "resource_id": body['id'],
+                "name": "cpu_util"
+            }
+            self.gnocchi.create_metric(**metric_body)
+            resp, body = self.gnocchi.search_resource(**search_body)
+            body = body[0]
         return resp, body
 
     def add_measures(self, metric_uuid, body):

@@ -1,20 +1,20 @@
 - project:
     check:
       jobs:
-        - watcher-tempest-functional
-        - watcher-tempest-dummy_optim
-        - watcher-tempest-actuator
-        - watcher-tempest-basic_optim
-        - watcher-tempest-workload_balancing
+        - watcher-tempest-functional:
+            voting: false
+        - watcher-tempest-dummy_optim:
+            voting: false
+        - watcher-tempest-actuator:
+            voting: false
+        - watcher-tempest-basic_optim:
+            voting: false
+        - watcher-tempest-workload_balancing:
+            voting: false
         - watcher-tempest-zone_migration
 
     gate:
       jobs:
-        - watcher-tempest-functional
-        - watcher-tempest-dummy_optim
-        - watcher-tempest-actuator
-        - watcher-tempest-basic_optim
-        - watcher-tempest-workload_balancing
         - watcher-tempest-zone_migration
 
 - job:
