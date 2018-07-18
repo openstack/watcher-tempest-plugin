@@ -10,6 +10,7 @@ Note that this is a hard requirement.
 
 * Free software: Apache license
 * Documentation: https://docs.openstack.org/watcher/latest/ plugin watcher-tempest-plugin
+* Release notes: https://docs.openstack.org/releasenotes/watcher/ plugin watcher-tempest-plugin
 * Source: https://git.openstack.org/cgit/openstack/watcher-tempest-plugin
 * Bugs: https://bugs.launchpad.net/watcher plugin watcher-tempest-plugin
 
