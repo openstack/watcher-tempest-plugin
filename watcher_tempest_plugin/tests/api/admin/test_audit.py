@@ -210,7 +210,7 @@ class TestShowListAudit(base.BaseInfraOptimTest):
 
     def assert_expected(self, expected, actual,
                         keys=('created_at', 'updated_at',
-                              'deleted_at', 'state')):
+                              'deleted_at', 'state', 'hostname')):
         super(TestShowListAudit, self).assert_expected(
             expected, actual, keys)
 
@@ -221,16 +221,14 @@ class TestShowListAudit(base.BaseInfraOptimTest):
 
         initial_audit = self.audit.copy()
         del initial_audit['state']
-        if initial_audit.get('hostname'):
-            del initial_audit['hostname']
+        del initial_audit['hostname']
         audit_state = audit['state']
         actual_audit = audit.copy()
         del actual_audit['state']
 
         self.assertIn(audit_state, self.audit_states)
-        if actual_audit.get('hostname'):
-            self.assertIsNotNone(actual_audit['hostname'])
-            del actual_audit['hostname']
+        self.assertIsNotNone(actual_audit['hostname'])
+        del actual_audit['hostname']
         self.assert_expected(initial_audit, actual_audit)
 
     @decorators.attr(type='smoke')

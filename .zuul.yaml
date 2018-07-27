@@ -11,14 +11,8 @@
             voting: false
         - watcher-tempest-workload_balancing:
             voting: false
-        - watcher-tempest-zone_migration
 
     gate:
       jobs:
-        - watcher-tempest-zone_migration
+        - watcher-tempest-functional
 
-- job:
-    name: watcher-tempest-zone_migration
-    parent: watcher-tempest-multinode
-    vars:
-      tempest_test_regex: 'watcher_tempest_plugin.tests.scenario.test_execute_zone_migration'
