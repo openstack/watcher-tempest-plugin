@@ -11,6 +11,8 @@
             voting: false
         - watcher-tempest-workload_balancing:
             voting: false
+        - watcher-tempest-zone_migration:
+            voting: false
 
     gate:
       jobs:
