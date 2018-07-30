@@ -43,7 +43,9 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
     # States where the object is waiting for some event to perform a transition
     IDLE_STATES = ('RECOMMENDED', 'FAILED', 'SUCCEEDED', 'CANCELLED')
     # States where the object can only be DELETED (end of its life-cycle)
-    FINISHED_STATES = ('FAILED', 'SUCCEEDED', 'CANCELLED', 'SUPERSEDED')
+    AUDIT_FINISHED_STATES = ('FAILED', 'SUCCEEDED', 'CANCELLED', 'SUSPENDED')
+    # States where the object can only be DELETED (end of its life-cycle)
+    AP_FINISHED_STATES = ('FAILED', 'SUCCEEDED', 'CANCELLED', 'SUPERSEDED')
 
     @classmethod
     def setup_credentials(cls):
@@ -84,7 +86,7 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
     @classmethod
     def _are_all_action_plans_finished(cls):
         _, action_plans = cls.client.list_action_plans()
-        return all([ap['state'] in cls.FINISHED_STATES
+        return all([ap['state'] in cls.AP_FINISHED_STATES
                     for ap in action_plans['action_plans']])
 
     def wait_for_all_action_plans_to_finish(self):
@@ -278,7 +280,7 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
     @classmethod
     def has_audit_finished(cls, audit_uuid):
         _, audit = cls.client.show_audit(audit_uuid)
-        return audit.get('state') in cls.FINISHED_STATES
+        return audit.get('state') in cls.AUDIT_FINISHED_STATES
 
     # ### ACTION PLANS ### #
 
@@ -293,14 +295,12 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
 
     def has_action_plan_finished(self, action_plan_uuid):
         _, action_plan = self.client.show_action_plan(action_plan_uuid)
-        return action_plan.get('state') in ('FAILED', 'SUCCEEDED', 'CANCELLED',
-                                            'SUPERSEDED')
+        return action_plan.get('state') in self.AP_FINISHED_STATES
 
     def has_action_plans_finished(self):
         _, action_plans = self.client.list_action_plans()
         for ap in action_plans['action_plans']:
             _, action_plan = self.client.show_action_plan(ap['uuid'])
-            if action_plan.get('state') not in ('FAILED', 'SUCCEEDED',
-                                                'CANCELLED', 'SUPERSEDED'):
+            if action_plan.get('state') not in self.AP_FINISHED_STATES:
                 return False
         return True
