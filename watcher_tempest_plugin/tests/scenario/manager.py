@@ -14,8 +14,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from oslo_log import log
-
 from tempest.common import compute
 from tempest.common import waiters
 from tempest import config
@@ -25,8 +23,6 @@ from tempest.lib import exceptions as lib_exc
 import tempest.test
 
 CONF = config.CONF
-
-LOG = log.getLogger(__name__)
 
 
 class ScenarioTest(tempest.test.BaseTestCase):
