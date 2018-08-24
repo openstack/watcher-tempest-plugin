@@ -51,6 +51,7 @@ class TestCreateUpdateDeleteAudit(base.BaseInfraOptimTest):
         audit_params.pop('audit_template_uuid')
         audit_params['goal_uuid'] = goal['uuid']
         self.assert_expected(audit_params, body)
+        self.assertIn(body['state'], ('PENDING', 'ONGOING', 'SUCCEEDED'))
 
         _, audit = self.client.show_audit(body['uuid'])
         self.assert_expected(audit, body)
@@ -70,6 +71,7 @@ class TestCreateUpdateDeleteAudit(base.BaseInfraOptimTest):
         audit_params.pop('audit_template_uuid')
         audit_params['goal_uuid'] = goal['uuid']
         self.assert_expected(audit_params, body)
+        self.assertIn(body['state'], ('PENDING', 'ONGOING'))
 
         _, audit = self.client.show_audit(body['uuid'])
         self.assert_expected(audit, body)
