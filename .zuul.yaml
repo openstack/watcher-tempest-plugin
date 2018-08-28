@@ -1,4 +1,7 @@
 - project:
+    templates:
+      - check-requirements
+      - tempest-plugin-jobs
     check:
       jobs:
         - watcher-tempest-functional:
@@ -13,6 +16,7 @@
             voting: false
 
     gate:
+      queue: watcher
       jobs:
         - watcher-tempest-functional
 
