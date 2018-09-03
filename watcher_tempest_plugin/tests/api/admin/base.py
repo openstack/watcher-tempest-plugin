@@ -166,7 +166,7 @@ class BaseInfraOptimTest(test.BaseTestCase):
 
     @classmethod
     def create_audit(cls, audit_template_uuid, audit_type='ONESHOT',
-                     state=None, interval=None, parameters=None):
+                     state=None, interval=None, parameters=None, name=None):
         """Wrapper utility for creating a test audit
 
         :param audit_template_uuid: Audit Template UUID this audit will use
@@ -178,7 +178,7 @@ class BaseInfraOptimTest(test.BaseTestCase):
         """
         resp, body = cls.client.create_audit(
             audit_template_uuid=audit_template_uuid, audit_type=audit_type,
-            state=state, interval=interval, parameters=parameters)
+            state=state, interval=interval, parameters=parameters, name=name)
 
         cls.created_audits.add(body['uuid'])
         cls.created_action_plans_audit_uuids.add(body['uuid'])
