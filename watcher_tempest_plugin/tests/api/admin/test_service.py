@@ -43,7 +43,8 @@ class TestShowListService(base.BaseInfraOptimTest):
         services = body['services']
         self.assertIn(self.DECISION_ENGINE,
                       [i['name'] for i in body['services']])
-
+        self.assertIn(self.APPLIER,
+                      [i['name'] for i in body['services']])
         service_id = filter(lambda x: self.DECISION_ENGINE == x['name'],
                             services)[0]['id']
         _, service = self.client.show_service(service_id)
@@ -60,7 +61,8 @@ class TestShowListService(base.BaseInfraOptimTest):
         services = body['services']
         self.assertIn(self.DECISION_ENGINE,
                       [i['name'] for i in body['services']])
-
+        self.assertIn(self.APPLIER,
+                      [i['name'] for i in body['services']])
         service_id = filter(lambda x: self.DECISION_ENGINE == x['name'],
                             services)[0]['id']
         _, service = self.client.show_service(service_id)
@@ -77,7 +79,8 @@ class TestShowListService(base.BaseInfraOptimTest):
         services = body['services']
         self.assertIn(self.DECISION_ENGINE,
                       [i['name'] for i in body['services']])
-
+        self.assertIn(self.APPLIER,
+                      [i['name'] for i in body['services']])
         for service in services:
             self.assertTrue(
                 all(val is not None for key, val in service.items()
