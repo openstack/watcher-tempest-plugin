@@ -325,7 +325,7 @@ class InfraOptimClientJSON(base.BaseClient):
     def show_service(self, service):
         """Gets a specific service
 
-        :param service: Name of the strategy
-        :return: Serialized strategy as a dictionary
+        :param service: Name of the service
+        :return: Serialized service as a dictionary
         """
         return self._show_request('/services', service)
