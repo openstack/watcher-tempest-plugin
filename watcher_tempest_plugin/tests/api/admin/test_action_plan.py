@@ -49,6 +49,29 @@ class TestCreateDeleteExecuteActionPlan(base.BaseInfraOptimTest):
         self.assertEqual('RECOMMENDED', action_plan['state'])
 
     @decorators.attr(type='smoke')
+    def test_execute_action_plan(self):
+        _, goal = self.client.show_goal("dummy")
+        _, audit_template = self.create_audit_template(goal['uuid'])
+        _, audit = self.create_audit(audit_template['uuid'])
+
+        self.assertTrue(test_utils.call_until_true(
+            func=functools.partial(self.has_audit_finished, audit['uuid']),
+            duration=30,
+            sleep_for=.5
+        ))
+        _, action_plans = self.client.list_action_plans(
+            audit_uuid=audit['uuid'])
+        action_plan = action_plans['action_plans'][0]
+
+        _, action_plan = self.client.show_action_plan(action_plan['uuid'])
+        self.assertEqual('RECOMMENDED', action_plan['state'])
+
+        self.start_action_plan(action_plan['uuid'])
+
+        _, action_plan = self.client.show_action_plan(action_plan['uuid'])
+        self.assertEqual('SUCCEEDED', action_plan['state'])
+
+    @decorators.attr(type='smoke')
     def test_delete_action_plan(self):
         _, goal = self.client.show_goal("dummy")
         _, audit_template = self.create_audit_template(goal['uuid'])

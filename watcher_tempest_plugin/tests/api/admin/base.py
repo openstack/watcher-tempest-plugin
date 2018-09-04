@@ -258,6 +258,24 @@ class BaseInfraOptimTest(test.BaseTestCase):
         return action_plans['action_plans'][0]
 
     @classmethod
+    def start_action_plan(cls, action_plan_uuid):
+        """Starts an action plan having the specified UUID
+
+        :param action_plan_uuid: The unique identifier of the action plan.
+        :return: the HTTP response
+        """
+        resp, _ = cls.client.start_action_plan(action_plan_uuid)
+
+        test_utils.call_until_true(
+            func=functools.partial(
+                cls.is_action_plan_idle, action_plan_uuid),
+            duration=30,
+            sleep_for=.5
+        )
+
+        return resp
+
+    @classmethod
     def delete_action_plan(cls, action_plan_uuid):
         """Deletes an action plan having the specified UUID
 
