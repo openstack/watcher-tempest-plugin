@@ -4,8 +4,7 @@
       - tempest-plugin-jobs
     check:
       jobs:
-        - watcher-tempest-functional:
-            voting: false
+        - watcher-tempest-functional
         - watcher-tempest-dummy_optim:
             voting: false
         - watcher-tempest-actuator:
