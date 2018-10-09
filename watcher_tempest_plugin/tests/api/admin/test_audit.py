@@ -229,7 +229,10 @@ class TestShowListAudit(base.BaseInfraOptimTest):
         actual_audit = audit.copy()
 
         self.assertIn(audit_state, self.audit_states)
-        self.assertIsNotNone(actual_audit['hostname'])
+        # hostname may be None if audit state is
+        # CANCELLED/DELETED/PENDING/SUSPENDED
+        if audit_state in ('ONGOING', 'SUCCEEDED', 'FAILED'):
+            self.assertIsNotNone(actual_audit['hostname'])
         self.assert_expected(initial_audit, actual_audit)
 
     @decorators.attr(type='smoke')
