@@ -159,8 +159,13 @@ class TestExecuteZoneMigrationStrategy(base.BaseInfraOptimScenarioTest):
     def test_execute_zone_migration_live_migration(self):
         """Execute an action plan using the zone migration strategy"""
         self.addCleanup(self.rollback_compute_nodes_status)
-        instances = self._create_one_instance_per_host()
-        node = self._pack_all_created_instances_on_one_host(instances)
+        instance = self.create_server(image_id=CONF.compute.image_ref,
+                                      wait_until='ACTIVE',
+                                      clients=self.os_primary)
+        instance = self.mgr.servers_client.show_server(
+            instance['id'])['server']
+        node = instance.get('OS-EXT-SRV-ATTR:hypervisor_hostname')
+
         vacant_node = [hyp['hypervisor_hostname'] for hyp
                        in self.get_hypervisors_setup()
                        if hyp['state'] == 'up'
@@ -205,5 +210,26 @@ class TestExecuteZoneMigrationStrategy(base.BaseInfraOptimScenarioTest):
         action_plan = action_plans['action_plans'][0]
 
         _, action_plan = self.client.show_action_plan(action_plan['uuid'])
+
+        if action_plan['state'] in ('SUPERSEDED', 'SUCCEEDED'):
+            # This means the action plan is superseded so we cannot trigger it,
+            # or it is empty.
+            return
+
+        # Execute the action by changing its state to PENDING
+        _, updated_ap = self.client.start_action_plan(action_plan['uuid'])
+
+        self.assertTrue(test_utils.call_until_true(
+            func=functools.partial(
+                self.has_action_plan_finished, action_plan['uuid']),
+            duration=600,
+            sleep_for=2
+        ))
+        _, finished_ap = self.client.show_action_plan(action_plan['uuid'])
         _, action_list = self.client.list_actions(
-            action_plan_uuid=action_plan["uuid"])
+            action_plan_uuid=finished_ap["uuid"])
+        self.assertIn(updated_ap['state'], ('PENDING', 'ONGOING'))
+        self.assertIn(finished_ap['state'], ('SUCCEEDED', 'SUPERSEDED'))
+
+        for action in action_list['actions']:
+            self.assertEqual('SUCCEEDED', action.get('state'))
