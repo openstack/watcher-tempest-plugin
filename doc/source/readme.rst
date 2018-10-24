@@ -76,21 +76,7 @@ For Keystone V3::
     admin_domain_name = <ADMIN_DOMAIN_NAME>
 
     [identity-feature-enabled]
-    api_v2 = false
     api_v3 = true
-
-For Keystone V2::
-
-    [identity]
-    uri = http://<KEYSTONE_PUBLIC_ENDPOINT_IP>:<KEYSTONE_PORT>/v2.0
-    auth_version = v2
-
-    [auth]
-    admin_tenant_name = <ADMIN_TENANT_NAME>
-    admin_username = <ADMIN_USERNAME>
-    admin_password = <ADMIN_PASSWORD>
-
-In both cases::
 
     [network]
     public_network_id = <PUBLIC_NETWORK_ID>
