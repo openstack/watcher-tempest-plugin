@@ -109,12 +109,12 @@ class BaseInfraOptimTest(test.BaseTestCase):
     def validate_self_link(self, resource, uuid, link):
         """Check whether the given self link formatted correctly."""
         expected_link = "{base}/{pref}/{res}/{uuid}".format(
-            base=self.client.base_url,
+            base='https?://[^/]*',
             pref=self.client.URI_PREFIX,
             res=resource,
             uuid=uuid
         )
-        self.assertEqual(expected_link, link)
+        self.assertRegex(link, expected_link)
 
     def assert_expected(self, expected, actual,
                         keys=('created_at', 'updated_at', 'deleted_at')):
