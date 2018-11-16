@@ -32,7 +32,7 @@ class TestCreateUpdateDeleteAudit(base.BaseInfraOptimTest):
                     'CANCELLED', 'DELETED', 'PENDING', 'SUSPENDED']
 
     def assert_expected(self, expected, actual,
-                        keys=('created_at', 'updated_at',
+                        keys=('created_at', 'updated_at', 'next_run_time',
                               'deleted_at', 'state', 'hostname')):
         super(TestCreateUpdateDeleteAudit, self).assert_expected(
             expected, actual, keys)

@@ -176,10 +176,27 @@ class BaseInfraOptimTest(test.BaseTestCase):
         :param parameters: list of execution parameters
         :return: A tuple with The HTTP response and its body
         """
-        resp, body = cls.client.create_audit(
-            audit_template_uuid=audit_template_uuid, audit_type=audit_type,
-            state=state, interval=interval, parameters=parameters, name=name)
+        # if actionplan is running, create_audit will fail, we retry 5 times.
+        retry = 5
+        audit_success = False
+        while not audit_success and retry:
+            resp, body = cls.client.create_audit(
+                audit_template_uuid=audit_template_uuid,
+                audit_type=audit_type, state=state, interval=interval,
+                parameters=parameters, name=name)
+            audit_uuid = body['uuid']
+            test_utils.call_until_true(
+                func=functools.partial(cls.has_audit_finished, audit_uuid),
+                duration=30,
+                sleep_for=2
+            )
+            if cls.has_audit_failed(audit_uuid):
+                audit_success = False
+            else:
+                audit_success = True
+            retry -= 1
 
+        assert audit_success
         cls.created_audits.add(body['uuid'])
         cls.created_action_plans_audit_uuids.add(body['uuid'])
 
@@ -205,6 +222,12 @@ class BaseInfraOptimTest(test.BaseTestCase):
         :param audit_uuid: The unique identifier of the audit.
         :return: the HTTP response
         """
+        _, audit = cls.client.show_audit(audit_uuid)
+        if audit.get('state') == 'ONGOING':
+            cls.update_audit(
+                audit_uuid,
+                [{'op': 'replace', 'path': '/state', 'value': 'CANCELLED'}]
+            )
         resp, _ = cls.client.delete_audit(audit_uuid)
 
         if audit_uuid in cls.created_audits:
@@ -220,7 +243,17 @@ class BaseInfraOptimTest(test.BaseTestCase):
     @classmethod
     def has_audit_finished(cls, audit_uuid):
         _, audit = cls.client.show_audit(audit_uuid)
-        return audit.get('state') in cls.FINISHED_STATES
+        finished_states = cls.FINISHED_STATES
+        if audit.get('audit_type') == 'CONTINUOUS':
+            finished_states += ('ONGOING',)
+        return audit.get('state') in finished_states
+
+    @classmethod
+    def has_audit_failed(cls, audit_uuid):
+        _, audit = cls.client.show_audit(audit_uuid)
+        return audit.get('state') in ('FAILED',
+                                      'CANCELLED',
+                                      'SUPERSEDED')
 
     @classmethod
     def is_audit_idle(cls, audit_uuid):
