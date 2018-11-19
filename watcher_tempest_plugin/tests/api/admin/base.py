@@ -192,6 +192,7 @@ class BaseInfraOptimTest(test.BaseTestCase):
             )
             if cls.has_audit_failed(audit_uuid):
                 audit_success = False
+                cls.delete_audit(audit_uuid)
             else:
                 audit_success = True
             retry -= 1
