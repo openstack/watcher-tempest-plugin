@@ -106,6 +106,20 @@ class BaseInfraOptimTest(test.BaseTestCase):
         finally:
             super(BaseInfraOptimTest, cls).resource_cleanup()
 
+    @classmethod
+    def _are_all_action_plans_finished(cls):
+        _, action_plans = cls.client.list_action_plans()
+        return all([ap['state'] in cls.IDLE_STATES
+                    for ap in action_plans['action_plans']])
+
+    @classmethod
+    def wait_for_all_action_plans_to_finish(cls):
+        assert test_utils.call_until_true(
+            func=cls._are_all_action_plans_finished,
+            duration=300,
+            sleep_for=5
+        )
+
     def validate_self_link(self, resource, uuid, link):
         """Check whether the given self link formatted correctly."""
         expected_link = "{base}/{pref}/{res}/{uuid}".format(
@@ -179,6 +193,7 @@ class BaseInfraOptimTest(test.BaseTestCase):
         # if actionplan is running, create_audit will fail, we retry 5 times.
         retry = 5
         audit_success = False
+        cls.wait_for_all_action_plans_to_finish()
         while not audit_success and retry:
             resp, body = cls.client.create_audit(
                 audit_template_uuid=audit_template_uuid,
