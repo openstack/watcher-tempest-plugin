@@ -45,8 +45,8 @@ class TestShowListService(base.BaseInfraOptimTest):
                       [i['name'] for i in body['services']])
         self.assertIn(self.APPLIER,
                       [i['name'] for i in body['services']])
-        service_id = filter(lambda x: self.DECISION_ENGINE == x['name'],
-                            services)[0]['id']
+        service_id = list(filter(lambda x: self.DECISION_ENGINE == x['name'],
+                          services))[0]['id']
         _, service = self.client.show_service(service_id)
 
         self.assertEqual(self.DECISION_ENGINE, service['name'])
@@ -63,8 +63,8 @@ class TestShowListService(base.BaseInfraOptimTest):
                       [i['name'] for i in body['services']])
         self.assertIn(self.APPLIER,
                       [i['name'] for i in body['services']])
-        service_id = filter(lambda x: self.DECISION_ENGINE == x['name'],
-                            services)[0]['id']
+        service_id = list(filter(lambda x: self.DECISION_ENGINE == x['name'],
+                          services))[0]['id']
         _, service = self.client.show_service(service_id)
 
         self.assertIn('links', service.keys())
