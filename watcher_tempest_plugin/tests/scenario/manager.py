@@ -198,3 +198,27 @@ class ScenarioTest(tempest.test.BaseTestCase):
                         clients.servers_client.delete_server, body['id'])
         server = clients.servers_client.show_server(body['id'])['server']
         return server
+
+    def create_volume(self, name=None, image_id=None, size=None,
+                      volume_type=None, clients=None):
+
+        if clients is None:
+            clients = self.os_primary
+
+        if name is None:
+            name = data_utils.rand_name(self.__class__.__name__ + "-volume")
+        volumes_client = clients.volumes_client_latest
+        params = {'name': name,
+                  'imageRef': image_id,
+                  'volume_type': volume_type,
+                  'size': size or CONF.volume.volume_size}
+        volume = volumes_client.create_volume(**params)['volume']
+        self.addCleanup(volumes_client.wait_for_resource_deletion,
+                        volume['id'])
+        self.addCleanup(test_utils.call_and_ignore_notfound_exc,
+                        volumes_client.delete_volume, volume['id'])
+        self.assertEqual(name, volume['name'])
+        waiters.wait_for_volume_resource_status(volumes_client,
+                                                volume['id'], 'available')
+        volume = volumes_client.show_volume(volume['id'])['volume']
+        return volume
