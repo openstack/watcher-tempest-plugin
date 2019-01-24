@@ -61,7 +61,6 @@ class TestExecuteHostMaintenanceStrategy(base.BaseInfraOptimScenarioTest):
         """Execute an action plan using the host_maintenance strategy"""
         self.addCleanup(self.rollback_compute_nodes_status)
         instances = self._create_one_instance_per_host()
-        self._pack_all_created_instances_on_one_host(instances)
         hostname = instances[0].get('OS-EXT-SRV-ATTR:hypervisor_hostname')
         audit_parameters = {"maintenance_node": hostname}
 
@@ -102,3 +101,28 @@ class TestExecuteHostMaintenanceStrategy(base.BaseInfraOptimScenarioTest):
         _, action_plan = self.client.show_action_plan(action_plan['uuid'])
         _, action_list = self.client.list_actions(
             action_plan_uuid=action_plan["uuid"])
+
+        if action_plan['state'] in ('SUPERSEDED', 'SUCCEEDED'):
+            # This means the action plan is superseded so we cannot trigger it,
+            # or it is empty.
+            return
+        for action in action_list['actions']:
+            self.assertEqual('PENDING', action.get('state'))
+
+        # Execute the action by changing its state to PENDING
+        _, updated_ap = self.client.start_action_plan(action_plan['uuid'])
+
+        self.assertTrue(test_utils.call_until_true(
+            func=functools.partial(
+                self.has_action_plan_finished, action_plan['uuid']),
+            duration=600,
+            sleep_for=2
+        ))
+        _, finished_ap = self.client.show_action_plan(action_plan['uuid'])
+        _, action_list = self.client.list_actions(
+            action_plan_uuid=finished_ap["uuid"])
+        self.assertIn(updated_ap['state'], ('PENDING', 'ONGOING'))
+        self.assertIn(finished_ap['state'], ('SUCCEEDED', 'SUPERSEDED'))
+
+        for action in action_list['actions']:
+            self.assertEqual('SUCCEEDED', action.get('state'))
