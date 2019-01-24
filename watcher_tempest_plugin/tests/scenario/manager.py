@@ -222,3 +222,20 @@ class ScenarioTest(tempest.test.BaseTestCase):
                                                 volume['id'], 'available')
         volume = volumes_client.show_volume(volume['id'])['volume']
         return volume
+
+    def create_volume_type(self, clients=None, name=None, backend_name=None):
+        if clients is None:
+            clients = self.os_primary
+        if name is None:
+            class_name = self.__class__.__name__
+            name = data_utils.rand_name(class_name + '-volume-type')
+
+        volumes_client = clients.volumes_client_latest
+        extra_specs = {}
+        if backend_name:
+            extra_specs = {"volume_backend_name": backend_name}
+
+        volume_type = volumes_client.create_volume_type(
+            name=name, extra_specs=extra_specs)['volume_type']
+        self.addCleanup(volumes_client.delete_volume_type, volume_type['id'])
+        return volume_type
