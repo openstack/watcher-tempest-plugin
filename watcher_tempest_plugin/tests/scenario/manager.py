@@ -15,6 +15,7 @@
 #    under the License.
 
 from tempest.common import compute
+from tempest.common import image as common_image
 from tempest.common import waiters
 from tempest import config
 from tempest.lib.common.utils import data_utils
@@ -28,7 +29,7 @@ CONF = config.CONF
 class ScenarioTest(tempest.test.BaseTestCase):
     """Base class for scenario tests. Uses tempest own clients. """
 
-    credentials = ['primary']
+    credentials = ['primary', 'admin']
 
     @classmethod
     def setup_clients(cls):
@@ -199,17 +200,26 @@ class ScenarioTest(tempest.test.BaseTestCase):
         server = clients.servers_client.show_server(body['id'])['server']
         return server
 
-    def create_volume(self, name=None, image_id=None, size=None,
+    def create_volume(self, name=None, imageRef=None, size=None,
                       volume_type=None, clients=None):
 
         if clients is None:
             clients = self.os_primary
 
+        if imageRef:
+            if CONF.image_feature_enabled.api_v1:
+                resp = self.image_client.check_image(imageRef)
+                image = common_image.get_image_meta_from_headers(resp)
+            else:
+                image = self.image_client.show_image(imageRef)
+            min_disk = image.get('min_disk')
+            size = max(size, min_disk)
+
         if name is None:
             name = data_utils.rand_name(self.__class__.__name__ + "-volume")
         volumes_client = clients.volumes_client_latest
         params = {'name': name,
-                  'imageRef': image_id,
+                  'imageRef': imageRef,
                   'volume_type': volume_type,
                   'size': size or CONF.volume.volume_size}
         volume = volumes_client.create_volume(**params)['volume']
@@ -225,12 +235,12 @@ class ScenarioTest(tempest.test.BaseTestCase):
 
     def create_volume_type(self, clients=None, name=None, backend_name=None):
         if clients is None:
-            clients = self.os_primary
+            clients = self.os_admin
         if name is None:
             class_name = self.__class__.__name__
             name = data_utils.rand_name(class_name + '-volume-type')
 
-        volumes_client = clients.volumes_client_latest
+        volumes_client = clients.volume_types_client_latest
         extra_specs = {}
         if backend_name:
             extra_specs = {"volume_backend_name": backend_name}

@@ -50,9 +50,10 @@ class TestExecuteStorageCapacityBalanceStrategy(
 
     def test_execute_storage_capacity_balance(self):
         """Execute the storage capacity balance strategy"""
-        self.create_volume(size=2)
-        self.create_volume(size=2)
-        self.create_volume(size=1)
+        self.create_volume(imageRef=CONF.compute.image_ref, size=3)
+        self.create_volume(imageRef=CONF.compute.image_ref, size=3)
+        self.create_volume(imageRef=CONF.compute.image_ref, size=3)
+        self.create_volume(imageRef=CONF.compute.image_ref)
         audit_parameters = {"volume_threshold": 25}
 
         _, goal = self.client.show_goal(self.GOAL)
