@@ -71,8 +71,8 @@ class TestExecuteWorkloadBalancingStrategy(base.BaseInfraOptimScenarioTest):
             "weights": {"cpu_util_weight": 1.0},
             "periods": {"instance": 72000, "node": 60000},
             "instance_metrics": {"cpu_util": "compute.node.cpu.percent"},
-            "granularity": 1,
-            "aggregation_method": {"instance": "last", "node": "last"}}
+            "granularity": 300,
+            "aggregation_method": {"instance": "mean", "node": "mean"}}
 
         _, goal = self.client.show_goal(self.GOAL)
         _, strategy = self.client.show_strategy("workload_stabilization")

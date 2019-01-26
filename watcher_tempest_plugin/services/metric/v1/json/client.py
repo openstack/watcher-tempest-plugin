@@ -57,7 +57,7 @@ class GnocchiClientJSON(base.BaseClient):
             '/search/resource/generic', kwargs, headers=self.json_header)
 
     @base.handle_errors
-    def show_measures(self, metric_uuid, aggregation='last'):
+    def show_measures(self, metric_uuid, aggregation='mean'):
         return self._list_request(
             '/metric/{metric_uuid}/measures?aggregation={aggregation}&'
             'refresh=true'.format(metric_uuid=metric_uuid,

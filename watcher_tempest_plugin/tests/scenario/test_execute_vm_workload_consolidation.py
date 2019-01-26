@@ -66,9 +66,21 @@ class TestExecuteVmWorkloadBalanceStrategy(base.BaseInfraOptimScenarioTest):
         - get results and make sure it succeeded
         """
         self.addCleanup(self.rollback_compute_nodes_status)
-        instances = self._create_one_instance_per_host()
-        self._pack_all_created_instances_on_one_host(instances)
-        self._create_one_instance_per_host()
+        metrics = {
+            'cpu_util': {
+                'archive_policy_name': 'low'
+            },
+            'memory.resident': {
+                'archive_policy_name': 'low'
+            },
+            'memory': {
+                'archive_policy_name': 'low'
+            },
+            'disk.root.size': {
+                'archive_policy_name': 'low'
+            }
+        }
+        self._create_one_instance_per_host(metrics)
 
         _, goal = self.client.show_goal(self.GOAL_NAME)
         _, strategy = self.client.show_strategy("vm_workload_consolidation")
