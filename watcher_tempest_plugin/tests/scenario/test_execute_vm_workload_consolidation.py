@@ -57,9 +57,9 @@ class TestExecuteVmWorkloadBalanceStrategy(base.BaseInfraOptimScenarioTest):
                 "skipping multinode tests.")
 
     def test_execute_vm_workload_consolidation_action_plan(self):
-        """Execute an action plan based on the BASIC strategy
+        """Execute an action plan based on the vm_workload_consolidation strategy
 
-        - create an audit template with the basic strategy
+        - create an audit template with the vm_workload_consolidation strategy
         - run the audit to create an action plan
         - get the action plan
         - run the action plan
@@ -85,9 +85,7 @@ class TestExecuteVmWorkloadBalanceStrategy(base.BaseInfraOptimScenarioTest):
         _, audit = self.create_audit(
             audit_template['uuid'],
             parameters={
-                "granularity": 1,
-                "period": 72000,
-                "aggregation_method": {"instance": "last", "node": "last"}
+                "period": 72000
             }
         )
 
