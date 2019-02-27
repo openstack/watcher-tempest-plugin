@@ -84,9 +84,9 @@ class TestExecuteBasicStrategy(base.BaseInfraOptimScenarioTest):
         _, audit = self.create_audit(
             audit_template['uuid'],
             parameters={
-                "granularity": 1,
+                "granularity": 300,
                 "period": 72000,
-                "aggregation_method": {"instance": "last", "node": "last"}
+                "aggregation_method": {"instance": "mean", "node": "mean"}
             }
         )
 

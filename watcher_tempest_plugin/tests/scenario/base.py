@@ -165,11 +165,13 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
             **kwargs)
         return body
 
-    def _create_one_instance_per_host(self):
+    def _create_one_instance_per_host(self, metrics=dict()):
         """Create 1 instance per compute node
 
         This goes up to the min_compute_nodes threshold so that things don't
         get crazy if you have 1000 compute nodes but set min to 3.
+
+        :param metrics: The metrics add to resource when using Gnocchi
         """
         host_client = self.mgr.hosts_client
         all_hosts = host_client.list_hosts()['hosts']
@@ -186,7 +188,7 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
             instance = self.mgr.servers_client.show_server(
                 instance['id'])['server']
             created_instances.append(instance)
-            self.make_instance_statistic(instance)
+            self.make_instance_statistic(instance, metrics=metrics)
 
         return created_instances
 
@@ -213,14 +215,15 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
             search_body = {"=": {"original_resource_id": kwargs['id']}}
             resp, body = self.gnocchi.search_resource(**search_body)
             body = body[0]
-            if body['metrics'].get('cpu_util'):
-                self.gnocchi.delete_metric(body['metrics']['cpu_util'])
-            metric_body = {
-                "archive_policy_name": "bool",
-                "resource_id": body['id'],
-                "name": "cpu_util"
-            }
-            self.gnocchi.create_metric(**metric_body)
+            for metric_name in kwargs['metrics'].keys():
+                metric_body = {
+                    "archive_policy_name": "low",
+                    "resource_id": body['id'],
+                    "name": metric_name
+                }
+                if body['metrics'].get(metric_name, None):
+                    self.gnocchi.delete_metric(body['metrics'][metric_name])
+                self.gnocchi.create_metric(**metric_body)
             resp, body = self.gnocchi.search_resource(**search_body)
             body = body[0]
         return resp, body
@@ -244,21 +247,26 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
             )
         return measures_body
 
-    def make_host_statistic(self):
-        """Create host resource and its measures in Gnocchi DB"""
+    def make_host_statistic(self, metrics=dict()):
+        """Create host resource and its measures in Gnocchi DB
+
+        :param metrics: The metrics add to resource when using Gnocchi
+        """
         hypervisors_client = self.mgr.hypervisor_client
         hypervisors = hypervisors_client.list_hypervisors(
             detail=True)['hypervisors']
+        if metrics == dict():
+            metrics = {
+                'compute.node.cpu.percent': {
+                    'archive_policy_name': 'low'
+                }
+            }
         for h in hypervisors:
             host_name = "%s_%s" % (h['hypervisor_hostname'],
                                    h['hypervisor_hostname'])
             resource_params = {
                 'type': 'host',
-                'metrics': {
-                    'compute.node.cpu.percent': {
-                        'archive_policy_name': 'bool'
-                    }
-                },
+                'metrics': metrics,
                 'host_name': host_name,
                 'id': host_name
             }
@@ -274,20 +282,23 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
         if len(res) > 0:
             return True
 
-    def make_instance_statistic(self, instance):
+    def make_instance_statistic(self, instance, metrics=dict()):
         """Create instance resource and its measures in Gnocchi DB
 
         :param instance: Instance response body
+        :param metrics: The metrics add to resource when using Gnocchi
         """
         flavor = self.flavors_client.show_flavor(instance['flavor']['id'])
         flavor_name = flavor['flavor']['name']
+        if metrics == dict():
+            metrics = {
+                'cpu_util': {
+                    'archive_policy_name': 'low'
+                }
+            }
         resource_params = {
             'type': 'instance',
-            'metrics': {
-                'cpu_util': {
-                    'archive_policy_name': 'bool'
-                }
-            },
+            'metrics': metrics,
             'host': instance.get('OS-EXT-SRV-ATTR:hypervisor_hostname'),
             'display_name': instance.get('OS-EXT-SRV-ATTR:instance_name'),
             'image_ref': instance['image']['id'],

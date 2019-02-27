@@ -11,6 +11,8 @@
             voting: false
         - watcher-tempest-basic_optim:
             voting: false
+        - watcher-tempest-vm_workload_consolidation:
+            voting: false
         - watcher-tempest-host_maintenance:
             voting: false
         - watcher-tempest-storage_balance:
