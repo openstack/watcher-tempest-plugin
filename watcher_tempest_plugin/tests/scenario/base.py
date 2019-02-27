@@ -165,8 +165,8 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
             **kwargs)
         return body
 
-    def _create_one_instance_per_host(self, metrics=dict()):
-        """Create 1 instance per compute node
+    def _create_one_instance_per_host_with_statistic(self, metrics=dict()):
+        """Create 1 instance per compute node and make instance statistic
 
         This goes up to the min_compute_nodes threshold so that things don't
         get crazy if you have 1000 compute nodes but set min to 3.

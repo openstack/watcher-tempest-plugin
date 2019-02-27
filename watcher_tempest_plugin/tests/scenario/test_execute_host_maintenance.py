@@ -60,7 +60,7 @@ class TestExecuteHostMaintenanceStrategy(base.BaseInfraOptimScenarioTest):
     def test_execute_host_maintenance(self):
         """Execute an action plan using the host_maintenance strategy"""
         self.addCleanup(self.rollback_compute_nodes_status)
-        instances = self._create_one_instance_per_host()
+        instances = self._create_one_instance_per_host_with_statistic()
         hostname = instances[0].get('OS-EXT-SRV-ATTR:hypervisor_hostname')
         audit_parameters = {"maintenance_node": hostname}
 

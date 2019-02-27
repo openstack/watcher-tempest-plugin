@@ -61,7 +61,7 @@ class TestExecuteWorkloadBalancingStrategy(base.BaseInfraOptimScenarioTest):
     def test_execute_workload_stabilization(self):
         """Execute an action plan using the workload_stabilization strategy"""
         self.addCleanup(self.rollback_compute_nodes_status)
-        instances = self._create_one_instance_per_host()
+        instances = self._create_one_instance_per_host_with_statistic()
         self._pack_all_created_instances_on_one_host(instances)
         self.make_host_statistic()
 

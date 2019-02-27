@@ -80,7 +80,7 @@ class TestExecuteVmWorkloadBalanceStrategy(base.BaseInfraOptimScenarioTest):
                 'archive_policy_name': 'low'
             }
         }
-        self._create_one_instance_per_host(metrics)
+        self._create_one_instance_per_host_with_statistic(metrics)
 
         _, goal = self.client.show_goal(self.GOAL_NAME)
         _, strategy = self.client.show_strategy("vm_workload_consolidation")

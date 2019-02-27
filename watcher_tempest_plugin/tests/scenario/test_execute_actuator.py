@@ -82,7 +82,7 @@ class TestExecuteActionsViaActuator(base.BaseInfraOptimScenarioTest):
         return self.mgr.flavors_client.list_flavors()['flavors']
 
     def _prerequisite_param_for_migrate_action(self):
-        created_instances = self._create_one_instance_per_host()
+        created_instances = self._create_one_instance_per_host_with_statistic()
         instance = created_instances[0]
         source_node = created_instances[0]["OS-EXT-SRV-ATTR:host"]
         destination_node = created_instances[-1]["OS-EXT-SRV-ATTR:host"]
@@ -97,7 +97,7 @@ class TestExecuteActionsViaActuator(base.BaseInfraOptimScenarioTest):
         return parameters
 
     def _prerequisite_param_for_resize_action(self):
-        created_instances = self._create_one_instance_per_host()
+        created_instances = self._create_one_instance_per_host_with_statistic()
         instance = created_instances[0]
         current_flavor_id = instance['flavor']['id']
 
@@ -227,7 +227,7 @@ class TestExecuteActionsViaActuator(base.BaseInfraOptimScenarioTest):
     def test_execute_resize(self):
         self.addCleanup(self.rollback_compute_nodes_status)
 
-        created_instances = self._create_one_instance_per_host()
+        created_instances = self._create_one_instance_per_host_with_statistic()
         instance = created_instances[0]
         current_flavor_id = instance['flavor']['id']
 
@@ -245,7 +245,7 @@ class TestExecuteActionsViaActuator(base.BaseInfraOptimScenarioTest):
     def test_execute_migrate(self):
         self.addCleanup(self.rollback_compute_nodes_status)
 
-        created_instances = self._create_one_instance_per_host()
+        created_instances = self._create_one_instance_per_host_with_statistic()
         instance = created_instances[0]
         source_node = created_instances[0]["OS-EXT-SRV-ATTR:host"]
         destination_node = created_instances[-1]["OS-EXT-SRV-ATTR:host"]
