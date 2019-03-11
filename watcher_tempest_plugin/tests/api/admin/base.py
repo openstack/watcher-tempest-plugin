@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import functools
+import time
 
 from tempest.lib.common.utils import data_utils
 from tempest.lib.common.utils import test_utils
@@ -208,6 +209,7 @@ class BaseInfraOptimTest(test.BaseTestCase):
             if cls.has_audit_failed(audit_uuid):
                 audit_success = False
                 cls.delete_audit(audit_uuid)
+                time.sleep(5)
             else:
                 audit_success = True
             retry -= 1
