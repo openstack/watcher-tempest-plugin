@@ -173,9 +173,7 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
 
         :param metrics: The metrics add to resource when using Gnocchi
         """
-        host_client = self.mgr.hosts_client
-        all_hosts = host_client.list_hosts()['hosts']
-        compute_nodes = [x for x in all_hosts if x['service'] == 'compute']
+        compute_nodes = self.get_compute_nodes_setup()
 
         created_instances = []
         for _ in compute_nodes[:CONF.compute.min_compute_nodes]:
