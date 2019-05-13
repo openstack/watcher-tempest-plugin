@@ -25,6 +25,7 @@ import time
 from datetime import datetime
 from datetime import timedelta
 from oslo_log import log
+from tempest.common import waiters
 from tempest import config
 from tempest.lib.common.utils import data_utils
 from tempest.lib.common.utils import test_utils
@@ -165,6 +166,24 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
             **kwargs)
         return body
 
+    def _live_migrate(self, server_id, target_host, state,
+                      volume_backed=False):
+        self._migrate_server_to(server_id, target_host, volume_backed)
+        waiters.wait_for_server_status(self.servers_client, server_id, state)
+        migration_list = (self.mgr.migrations_client.list_migrations()
+                          ['migrations'])
+
+        msg = ("Live Migration failed. Migrations list for Instance "
+               "%s: [" % server_id)
+        for live_migration in migration_list:
+            if (live_migration['instance_uuid'] == server_id):
+                msg += "\n%s" % live_migration
+        msg += "]"
+        server_host = self.mgr.servers_client.show_server(
+            server_id)['server']['OS-EXT-SRV-ATTR:host']
+
+        self.assertEqual(target_host, server_host, msg)
+
     def _create_one_instance_per_host_with_statistic(self, metrics=dict()):
         """Create 1 instance per compute node and make instance statistic
 
@@ -197,7 +216,7 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
         node = hypervisors[0]
         for instance in instances:
             if instance.get('OS-EXT-SRV-ATTR:hypervisor_hostname') != node:
-                self._migrate_server_to(instance['id'], node)
+                self._live_migrate(instance['id'], node, 'ACTIVE')
 
     # ### GNOCCHI ### #
 
