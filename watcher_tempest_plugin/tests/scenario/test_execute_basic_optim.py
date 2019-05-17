@@ -86,7 +86,8 @@ class TestExecuteBasicStrategy(base.BaseInfraOptimScenarioTest):
             parameters={
                 "granularity": 300,
                 "period": 72000,
-                "aggregation_method": {"instance": "mean", "node": "mean"}
+                "aggregation_method": {"instance": "mean",
+                                       "compute_node": "mean"}
             }
         )
 

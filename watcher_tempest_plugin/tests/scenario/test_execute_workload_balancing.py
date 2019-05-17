@@ -66,13 +66,13 @@ class TestExecuteWorkloadBalancingStrategy(base.BaseInfraOptimScenarioTest):
         self.make_host_statistic()
 
         audit_parameters = {
-            "metrics": ["cpu_util"],
-            "thresholds": {"cpu_util": 0.2},
-            "weights": {"cpu_util_weight": 1.0},
-            "periods": {"instance": 72000, "node": 60000},
-            "instance_metrics": {"cpu_util": "compute.node.cpu.percent"},
+            "metrics": ["instance_cpu_usage"],
+            "thresholds": {"instance_cpu_usage": 0.2},
+            "weights": {"instance_cpu_usage_weight": 1.0},
+            "periods": {"instance": 72000, "compute_node": 60000},
+            "instance_metrics": {"instance_cpu_usage": "host_cpu_usage"},
             "granularity": 300,
-            "aggregation_method": {"instance": "mean", "node": "mean"}}
+            "aggregation_method": {"instance": "mean", "compute_node": "mean"}}
 
         _, goal = self.client.show_goal(self.GOAL)
         _, strategy = self.client.show_strategy("workload_stabilization")

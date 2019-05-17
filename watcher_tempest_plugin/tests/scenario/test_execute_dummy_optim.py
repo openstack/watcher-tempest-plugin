@@ -51,8 +51,8 @@ class TestExecuteDummyStrategy(base.BaseInfraOptimScenarioTest):
 
         self.assertTrue(test_utils.call_until_true(
             func=functools.partial(self.has_audit_finished, audit['uuid']),
-            duration=30,
-            sleep_for=.5
+            duration=60,
+            sleep_for=2
         ))
 
         self.assertTrue(self.has_audit_succeeded(audit['uuid']))
@@ -74,8 +74,8 @@ class TestExecuteDummyStrategy(base.BaseInfraOptimScenarioTest):
         self.assertTrue(test_utils.call_until_true(
             func=functools.partial(
                 self.has_action_plan_finished, action_plan['uuid']),
-            duration=30,
-            sleep_for=.5
+            duration=60,
+            sleep_for=2
         ))
         _, finished_ap = self.client.show_action_plan(action_plan['uuid'])
         _, action_list = self.client.list_actions(
