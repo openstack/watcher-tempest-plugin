@@ -55,6 +55,8 @@ class TestExecuteActionsViaActuator(base.BaseInfraOptimScenarioTest):
                  "migration_type": "live"},
              "filling_function": "_prerequisite_param_for_migrate_action"},
             {"action_type": "migrate",
+             "input_parameters": {
+                 "migration_type": "cold"},
              "filling_function": "_prerequisite_param_for_migrate_action"}]})
     ]
 
