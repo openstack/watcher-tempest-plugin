@@ -156,3 +156,15 @@ And, to run a specific test::
 
     $ export TEMPEST_CONFIG_DIR=<TEMPEST_DIR>/watcher-cloud/etc/
     $ tox -eall-plugin watcher_tempest_plugin.tests.api.admin.test_audit_template.TestCreateDeleteAuditTemplate.test_create_audit_template
+
+
+Watcherclient Tempest tests execution
+-------------------------------
+
+To run Watcherclient functional tests you need to execute ``tempest run`` command::
+
+    $ tempest run --regex watcher_tempest_plugin.tests.client_functional
+
+You can run specified test(s) by using regular expression::
+
+    $ tempest run --regex watcher_tempest_plugin.tests.client_functional.v1.test_action.ActionTests.test_action_list
