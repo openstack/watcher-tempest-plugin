@@ -115,8 +115,8 @@ For more information, please refer to:
 - Keystone connection: https://docs.openstack.org/tempest/latest/configuration.html#keystone-connection-info
 - Dynamic Keystone Credentials: https://docs.openstack.org/tempest/latest/configuration.html#dynamic-credentials
 
-.. _virtual environment: http://docs.python-guide.org/en/latest/dev/virtualenvs/
-.. _Tempest configuration guide: http://docs.openstack.org/tempest/latest/configuration.html
+.. _virtual environment: https://docs.python-guide.org/dev/virtualenvs/
+.. _Tempest configuration guide: https://docs.openstack.org/tempest/latest/configuration.html
 
 
 Watcher Tempest tests execution
