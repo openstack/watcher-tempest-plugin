@@ -7,7 +7,7 @@
         - watcher-tempest-functional
         - watcher-tempest-dummy_optim
         - watcher-tempest-actuator
-        - watcher-tempest-basic_optim:
+        - watcher-tempest-strategies:
             voting: false
         - watcher-tempest-vm_workload_consolidation
         - watcher-tempest-host_maintenance
