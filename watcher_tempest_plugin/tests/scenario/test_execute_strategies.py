@@ -79,7 +79,6 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
 
         goal_name = "cluster_maintaining"
         strategy_name = "host_maintenance"
-        audit_kwargs = dict()
         audit_kwargs = {
             "parameters": {
                 "maintenance_node": hostname
