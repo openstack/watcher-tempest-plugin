@@ -38,12 +38,10 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
         if not CONF.compute_feature_enabled.live_migration:
             raise cls.skipException("Live migration is not enabled")
 
+        cls.wait_for_compute_node_setup()
         cls.initial_compute_nodes_setup = cls.get_compute_nodes_setup()
         enabled_compute_nodes = [cn for cn in cls.initial_compute_nodes_setup
                                  if cn.get('status') == 'enabled']
-
-        cls.wait_for_compute_node_setup()
-
         if len(enabled_compute_nodes) < 2:
             raise cls.skipException(
                 "Less than 2 compute nodes are enabled, "
@@ -74,6 +72,7 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
         self.execute_strategy(goal_name, strategy_name, **audit_kwargs)
 
     def test_execute_host_maintenance_strategy(self):
+        self.addCleanup(self.rollback_compute_nodes_status)
         instances = self._create_one_instance_per_host_with_statistic()
         hostname = instances[0].get('OS-EXT-SRV-ATTR:hypervisor_hostname')
 
@@ -89,6 +88,7 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
         self.execute_strategy(goal_name, strategy_name, **audit_kwargs)
 
     def test_execute_storage_capacity_balance_strategy(self):
+        self.addCleanup(self.rollback_compute_nodes_status)
         self.create_volume(imageRef=CONF.compute.image_ref, size=3)
         self.create_volume(imageRef=CONF.compute.image_ref, size=3)
         self.create_volume(imageRef=CONF.compute.image_ref, size=3)
