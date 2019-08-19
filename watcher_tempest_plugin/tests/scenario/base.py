@@ -27,6 +27,7 @@ from datetime import timedelta
 from oslo_log import log
 from tempest.common import waiters
 from tempest import config
+from tempest.lib.common import api_microversion_fixture
 from tempest.lib.common.utils import data_utils
 from tempest.lib.common.utils import test_utils
 from tempest.lib import exceptions
@@ -59,6 +60,11 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
         super(BaseInfraOptimScenarioTest, cls).setup_clients()
         cls.client = cls.mgr.io_client
         cls.gnocchi = cls.mgr.gn_client
+
+    def setUp(self):
+        super(BaseInfraOptimScenarioTest, self).setUp()
+        self.useFixture(api_microversion_fixture.APIMicroversionFixture(
+            compute_microversion=CONF.compute.min_microversion))
 
     @classmethod
     def resource_setup(cls):
@@ -121,11 +127,13 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
             ]
             initial_cn_setup = matching_cns[0]  # Should return a single result
             if cn_setup.get('status') != initial_cn_setup.get('status'):
-                if initial_cn_setup.get('status') == 'enabled':
-                    rollback_func = cls.mgr.services_client.enable_service
-                else:
-                    rollback_func = cls.mgr.services_client.disable_service
-                rollback_func(binary='nova-compute', host=cn_hostname)
+                svr_id = cn_setup.get('id')
+                status = initial_cn_setup.get('status')
+                # The Nova version Watcher neede is at least 2.56
+                # Starting with microversion 2.53 disable/enable API
+                # is superseded by PUT /os-services/{service_id}
+                rollback_func = cls.mgr.services_client.update_service
+                rollback_func(svr_id, status=status)
 
     @classmethod
     def wait_for(cls, condition, timeout=30):
@@ -155,20 +163,16 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
             sleep_for=5
         )
 
-    def _migrate_server_to(self, server_id, dest_host, volume_backed=False):
-        kwargs = dict()
-        kwargs['disk_over_commit'] = False
-        block_migration = (CONF.compute_feature_enabled.
-                           block_migration_for_live_migration and
-                           not volume_backed)
+    def _migrate_server_to(self, server_id, dest_host):
+        # The default value of  block_migration is auto and
+        # disk_over_commit is not valid after version 2.25
+        block_migration = 'auto'
         body = self.mgr.servers_client.live_migrate_server(
-            server_id, host=dest_host, block_migration=block_migration,
-            **kwargs)
+            server_id, host=dest_host, block_migration=block_migration)
         return body
 
-    def _live_migrate(self, server_id, target_host, state,
-                      volume_backed=False):
-        self._migrate_server_to(server_id, target_host, volume_backed)
+    def _live_migrate(self, server_id, target_host, state):
+        self._migrate_server_to(server_id, target_host)
         waiters.wait_for_server_status(self.servers_client, server_id, state)
         migration_list = (self.mgr.migrations_client.list_migrations()
                           ['migrations'])
@@ -309,8 +313,9 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
         :param instance: Instance response body
         :param metrics: The metrics add to resource when using Gnocchi
         """
-        flavor = self.flavors_client.show_flavor(instance['flavor']['id'])
-        flavor_name = flavor['flavor']['name']
+        all_flavors = self.flavors_client.list_flavors()['flavors']
+        flavor_name = instance['flavor']['original_name']
+        flavor = [f for f in all_flavors if f['name'] == flavor_name]
         if metrics == dict():
             metrics = {
                 'cpu_util': {
@@ -323,7 +328,7 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
             'host': instance.get('OS-EXT-SRV-ATTR:hypervisor_hostname'),
             'display_name': instance.get('OS-EXT-SRV-ATTR:instance_name'),
             'image_ref': instance['image']['id'],
-            'flavor_id': instance['flavor']['id'],
+            'flavor_id': flavor[0]['id'],
             'flavor_name': flavor_name,
             'id': instance['id']
         }

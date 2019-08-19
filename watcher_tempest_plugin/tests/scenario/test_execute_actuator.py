@@ -101,10 +101,10 @@ class TestExecuteActionsViaActuator(base.BaseInfraOptimScenarioTest):
     def _prerequisite_param_for_resize_action(self):
         created_instances = self._create_one_instance_per_host_with_statistic()
         instance = created_instances[0]
-        current_flavor_id = instance['flavor']['id']
+        current_flavor_name = instance['flavor']['original_name']
 
         flavors = self._get_flavors()
-        new_flavors = [f for f in flavors if f['id'] != current_flavor_id]
+        new_flavors = [f for f in flavors if f['name'] != current_flavor_name]
         new_flavor = new_flavors[0]
 
         parameters = {
