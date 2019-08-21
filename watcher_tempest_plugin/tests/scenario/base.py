@@ -24,6 +24,7 @@ import time
 
 from datetime import datetime
 from datetime import timedelta
+import os_traits
 from oslo_log import log
 from tempest.common import waiters
 from tempest import config
@@ -60,11 +61,14 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
         super(BaseInfraOptimScenarioTest, cls).setup_clients()
         cls.client = cls.mgr.io_client
         cls.gnocchi = cls.mgr.gn_client
+        cls.placement_client = cls.mgr.placement_client
 
     def setUp(self):
         super(BaseInfraOptimScenarioTest, self).setUp()
         self.useFixture(api_microversion_fixture.APIMicroversionFixture(
             compute_microversion=CONF.compute.min_microversion))
+        self.useFixture(api_microversion_fixture.APIMicroversionFixture(
+            placement_microversion=CONF.placement.min_microversion))
 
     @classmethod
     def resource_setup(cls):
@@ -202,8 +206,28 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
         if instances:
             return instances
 
+        hypervisors = self.get_hypervisors_setup()
         created_instances = []
-        for _ in compute_nodes[:CONF.compute.min_compute_nodes]:
+        for node in compute_nodes[:CONF.compute.min_compute_nodes]:
+            hyp_id = [
+                hyp['id'] for hyp in hypervisors
+                if hyp['hypervisor_hostname'] == node['host']]
+            # Placement may fail to update trait because of Conflict
+            # the trait may be updated by the Nova compute
+            # update_available_resource periodic task.
+            # We need node status is enabled, so we check the node
+            # trait and delay if it is not the correct status.
+            # the max delay time is 10 minutes.
+            node_trait = os_traits.COMPUTE_STATUS_DISABLED
+            retry = 20
+            trait_status = True
+            while trait_status and retry:
+                trait_status = self.check_node_trait(hyp_id[0], node_trait)
+                if not trait_status:
+                    break
+                time.sleep(30)
+                retry -= 1
+            self.assertNotEqual(0, retry)
             # by getting to active state here, this means this has
             # landed on the host in question.
             instance = self.create_server(image_id=CONF.compute.image_ref,
@@ -520,3 +544,16 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
 
         for action in action_list['actions']:
             self.assertEqual('SUCCEEDED', action.get('state'))
+
+    def check_node_trait(self, node_id, trait):
+        """Check if trait is in node traits
+
+        :param node_id: The unique identifier of the node.
+        :param trait: node trait
+        :return: True if node has the trait else False
+        """
+        traits = self.placement_client.list_provider_traits(node_id)
+        if trait in traits.get('traits'):
+            return True
+        else:
+            return False
