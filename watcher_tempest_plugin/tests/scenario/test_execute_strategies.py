@@ -168,3 +168,31 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
         audit_kwargs = {"parameters": audit_parameters}
 
         self.execute_strategy(goal_name, strategy_name, **audit_kwargs)
+
+    def test_execute_node_resource_consolidation_strategy_with_auto(self):
+        self.addCleanup(self.rollback_compute_nodes_status)
+        self._create_one_instance_per_host_with_statistic()
+
+        goal_name = "server_consolidation"
+        strategy_name = "node_resource_consolidation"
+        audit_kwargs = {
+            "parameters": {
+                "host_choice": 'auto'
+            }
+        }
+
+        self.execute_strategy(goal_name, strategy_name, **audit_kwargs)
+
+    def test_execute_node_resource_consolidation_strategy_with_specify(self):
+        self.addCleanup(self.rollback_compute_nodes_status)
+        self._create_one_instance_per_host_with_statistic()
+
+        goal_name = "server_consolidation"
+        strategy_name = "node_resource_consolidation"
+        audit_kwargs = {
+            "parameters": {
+                "host_choice": 'specify'
+            }
+        }
+
+        self.execute_strategy(goal_name, strategy_name, **audit_kwargs)
