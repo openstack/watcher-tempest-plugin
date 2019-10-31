@@ -200,7 +200,7 @@ class ScenarioTest(tempest.test.BaseTestCase):
         server = clients.servers_client.show_server(body['id'])['server']
         return server
 
-    def create_volume(self, name=None, imageRef=None, size=None,
+    def create_volume(self, name=None, imageRef=None, size=1,
                       volume_type=None, clients=None):
 
         if clients is None:
