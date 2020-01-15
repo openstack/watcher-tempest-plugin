@@ -32,6 +32,12 @@ class ScenarioTest(tempest.test.BaseTestCase):
     credentials = ['primary', 'admin']
 
     @classmethod
+    def skip_checks(cls):
+        super(ScenarioTest, cls).skip_checks()
+        if not CONF.service_available.watcher:
+            raise cls.skipException('Watcher support is required')
+
+    @classmethod
     def setup_clients(cls):
         super(ScenarioTest, cls).setup_clients()
         # Clients (in alphabetical order)
