@@ -17,11 +17,14 @@
 import functools
 import time
 
+from tempest import config
 from tempest.lib.common.utils import data_utils
 from tempest.lib.common.utils import test_utils
 from tempest import test
 
 from watcher_tempest_plugin import infra_optim_clients as clients
+
+CONF = config.CONF
 
 
 class BaseInfraOptimTest(test.BaseTestCase):
@@ -38,6 +41,12 @@ class BaseInfraOptimTest(test.BaseTestCase):
                        'SUCCEEDED',
                        'CANCELLED',
                        'SUPERSEDED')
+
+    @classmethod
+    def skip_checks(cls):
+        super(BaseInfraOptimTest, cls).skip_checks()
+        if not CONF.service_available.watcher:
+            raise cls.skipException('Watcher support is required')
 
     @classmethod
     def setup_credentials(cls):
