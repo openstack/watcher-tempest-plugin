@@ -94,6 +94,41 @@ class TestCreateUpdateDeleteAudit(base.BaseInfraOptimTest):
         self.assertEqual(audit['state'], 'CANCELLED')
 
     @decorators.attr(type='smoke')
+    def test_create_audit_event(self):
+        _, goal = self.client.show_goal("dummy")
+        _, audit_template = self.create_audit_template(goal['uuid'])
+
+        audit_params = dict(
+            audit_template_uuid=audit_template['uuid'],
+            audit_type='EVENT',
+            name='audit_event',
+        )
+
+        _, body = self.create_audit(**audit_params)
+        audit_params.pop('audit_template_uuid')
+        audit_params['goal_uuid'] = goal['uuid']
+        self.assert_expected(audit_params, body)
+        self.assertEqual(body['state'], 'PENDING')
+
+        _, audit = self.client.show_audit(body['uuid'])
+        self.assert_expected(audit, body)
+
+        _, audit = self.update_audit(
+            body['uuid'],
+            [{'op': 'replace', 'path': '/state', 'value': 'CANCELLED'}]
+        )
+
+        test_utils.call_until_true(
+            func=functools.partial(
+                self.is_audit_idle, body['uuid']),
+            duration=10,
+            sleep_for=.5
+        )
+
+        _, audit = self.client.show_audit(body['uuid'])
+        self.assertEqual(audit['state'], 'CANCELLED')
+
+    @decorators.attr(type='smoke')
     def test_create_audit_with_wrong_audit_template(self):
         audit_params = dict(
             audit_template_uuid='INVALID',
