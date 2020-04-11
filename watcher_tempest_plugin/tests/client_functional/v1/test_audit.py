@@ -110,6 +110,28 @@ class AuditTestsV11(AuditTests):
         assert audit_output['End Time'] == utc_time_str
 
 
+class AuditTestsV12(AuditTestsV11):
+    """This class tests v1.2 of Watcher API"""
+
+    api_version = 1.2
+
+    @classmethod
+    def setUpClass(cls):
+        raw_output = cls.watcher('audittemplate create %s dummy -s dummy'
+                                 % cls.audit_template_name)
+        template_output = cls.parse_show_as_object(raw_output)
+        audit_raw_output = cls.watcher(
+            'audit create --force -a %s' % template_output['Name'])
+        audit_output = cls.parse_show_as_object(audit_raw_output)
+        cls.audit_uuid = audit_output['UUID']
+        audit_created = test_utils.call_until_true(
+            func=functools.partial(cls.has_audit_created, cls.audit_uuid),
+            duration=600,
+            sleep_for=2)
+        if not audit_created:
+            raise Exception('Audit has not been succeeded')
+
+
 class AuditActiveTests(base.TestCase):
 
     list_fields = ['UUID', 'Name', 'Audit Type', 'State', 'Goal', 'Strategy']
