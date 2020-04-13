@@ -4,6 +4,7 @@
       - tempest-plugin-jobs
     check:
       jobs:
+        - watcherclient-tempest-functional
         - watcher-tempest-functional
         - watcher-tempest-dummy_optim
         - watcher-tempest-actuator
