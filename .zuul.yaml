@@ -8,8 +8,31 @@
         - watcher-tempest-functional
         - watcher-tempest-actuator
         - watcher-tempest-strategies
+        - watcher-tempest-functional-ussuri
+        - watcher-tempest-functional-train
+        - watcher-tempest-functional-stein
     gate:
       queue: watcher
       jobs:
         - watcher-tempest-functional
 
+- job:
+    name: watcher-tempest-functional-ussuri
+    parent: watcher-tempest-functional
+    override-checkout: stable/ussuri
+
+- job:
+    name: watcher-tempest-functional-train
+    parent: watcher-tempest-functional
+    override-checkout: stable/train
+    vars:
+      devstack_localrc:
+        USE_PYTHON3: True
+
+- job:
+    name: watcher-tempest-functional-stein
+    parent: watcher-tempest-functional
+    override-checkout: stable/stein
+    vars:
+      devstack_localrc:
+        USE_PYTHON3: True
