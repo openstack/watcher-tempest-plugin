@@ -95,6 +95,13 @@ class TestCreateUpdateDeleteAudit(base.BaseInfraOptimTest):
 
     @decorators.attr(type='smoke')
     def test_create_audit_event(self):
+        _, descr = self.client.get_api_description()
+        if descr['versions']:
+            max_version = descr['versions'][0]['max_version']
+            # no EVENT type before microversion 1.4
+            if max_version < '1.4':
+                return
+
         _, goal = self.client.show_goal("dummy")
         _, audit_template = self.create_audit_template(goal['uuid'])
 
