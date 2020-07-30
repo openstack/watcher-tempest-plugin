@@ -19,11 +19,13 @@
 - job:
     name: watcher-tempest-functional-ussuri
     parent: watcher-tempest-functional
+    nodeset: openstack-single-node-bionic
     override-checkout: stable/ussuri
 
 - job:
     name: watcher-tempest-functional-train
     parent: watcher-tempest-functional
+    nodeset: openstack-single-node-bionic
     override-checkout: stable/train
     vars:
       devstack_localrc:
@@ -32,6 +34,7 @@
 - job:
     name: watcher-tempest-functional-stein
     parent: watcher-tempest-functional
+    nodeset: openstack-single-node-bionic
     override-checkout: stable/stein
     vars:
       devstack_localrc:
