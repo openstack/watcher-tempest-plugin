@@ -17,8 +17,7 @@
 import abc
 import functools
 
-import six
-import six.moves.urllib.parse as urlparse
+import urllib.parse as urlparse
 
 from tempest.lib.common import rest_client
 
@@ -43,8 +42,7 @@ def handle_errors(f):
     return wrapper
 
 
-@six.add_metaclass(abc.ABCMeta)
-class BaseClient(rest_client.RestClient):
+class BaseClient(rest_client.RestClient, metaclass=abc.ABCMeta):
     """Base Tempest REST client for API."""
 
     URI_PREFIX = ''

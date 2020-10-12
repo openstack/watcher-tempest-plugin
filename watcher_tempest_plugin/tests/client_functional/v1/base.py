@@ -17,7 +17,6 @@ import shlex
 import subprocess
 import testtools
 
-import six
 from tempest import clients
 from tempest.common import credentials_factory as creds_factory
 from tempest.lib.cli import output_parser
@@ -97,7 +96,7 @@ class TestCase(testtools.TestCase):
     def assert_show_fields(self, items, field_names):
         """Verify that all items have keys listed in field_names."""
         for item in items:
-            for key in six.iterkeys(item):
+            for key in item.keys():
                 self.assertIn(key, field_names)
 
     def assert_show_structure(self, items, field_names):

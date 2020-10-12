@@ -17,7 +17,6 @@
 import abc
 
 from oslo_serialization import jsonutils as json
-import six
 from tempest import clients
 from tempest.common import credentials_factory as creds_factory
 from tempest import config
@@ -30,8 +29,7 @@ from watcher_tempest_plugin.services.metric.v1.json import client as gc
 CONF = config.CONF
 
 
-@six.add_metaclass(abc.ABCMeta)
-class BaseManager(clients.Manager):
+class BaseManager(clients.Manager, metaclass=abc.ABCMeta):
 
     def __init__(self, credentials):
         super(BaseManager, self).__init__(credentials)
