@@ -106,8 +106,8 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
                     for service in cls.get_compute_nodes_setup()
                     if service['state'] == 'up')
                 return (
-                    len(available_hypervisors) == len(available_services) and
-                    len(hypervisors) >= 2)
+                    len(available_hypervisors) == len(available_services)
+                    and len(hypervisors) >= 2)
             except Exception as exc:
                 LOG.exception(exc)
                 return False

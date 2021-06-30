@@ -61,7 +61,7 @@ def execute(cmd, fail_ok=False, merge_stderr=False):
 
 class TestCase(testtools.TestCase):
 
-    delimiter_line = re.compile('^\+\-[\+\-]+\-\+$')
+    delimiter_line = re.compile(r'^\+\-[\+\-]+\-\+$')
 
     api_version = 1.0
 
