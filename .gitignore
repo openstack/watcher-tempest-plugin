@@ -38,6 +38,7 @@ cover/
 .coverage*
 !.coveragerc
 .tox
+.stestr
 nosetests.xml
 .testrepository
 .venv
