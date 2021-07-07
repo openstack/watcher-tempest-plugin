@@ -8,6 +8,8 @@
         - watcher-tempest-functional
         - watcher-tempest-actuator
         - watcher-tempest-strategies
+        - watcher-tempest-functional-wallaby
+        - watcher-tempest-functional-victoria
         - watcher-tempest-functional-ussuri
         - watcher-tempest-functional-train
         - watcher-tempest-functional-stein
@@ -15,6 +17,18 @@
       queue: watcher
       jobs:
         - watcher-tempest-functional
+
+- job:
+    name: watcher-tempest-functional-wallaby
+    parent: watcher-tempest-functional
+    nodeset: openstack-single-node-bionic
+    override-checkout: stable/wallaby
+
+- job:
+    name: watcher-tempest-functional-victoria
+    parent: watcher-tempest-functional
+    nodeset: openstack-single-node-bionic
+    override-checkout: stable/victoria
 
 - job:
     name: watcher-tempest-functional-ussuri
