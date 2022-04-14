@@ -91,7 +91,7 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
         self.create_volume(imageRef=CONF.compute.image_ref, size=3)
         self.create_volume(imageRef=CONF.compute.image_ref, size=3)
         self.create_volume(imageRef=CONF.compute.image_ref, size=3)
-        self.create_volume(imageRef=CONF.compute.image_ref)
+        self.create_volume(imageRef=CONF.compute.image_ref, size=1)
         audit_parameters = {"volume_threshold": 25}
 
         goal_name = "workload_balancing"
