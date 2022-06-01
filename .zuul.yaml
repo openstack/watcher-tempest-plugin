@@ -8,48 +8,28 @@
         - watcher-tempest-functional
         - watcher-tempest-actuator
         - watcher-tempest-strategies
+        - watcher-tempest-functional-yoga
+        - watcher-tempest-functional-xena
         - watcher-tempest-functional-wallaby
-        - watcher-tempest-functional-victoria
-        - watcher-tempest-functional-ussuri
-        - watcher-tempest-functional-train
-        - watcher-tempest-functional-stein
     gate:
       queue: watcher
       jobs:
         - watcher-tempest-functional
 
 - job:
+    name: watcher-tempest-functional-yoga
+    parent: watcher-tempest-functional
+    nodeset: openstack-single-node-focal
+    override-checkout: stable/yoga
+
+- job:
+    name: watcher-tempest-functional-xena
+    parent: watcher-tempest-functional
+    nodeset: openstack-single-node-focal
+    override-checkout: stable/xena
+
+- job:
     name: watcher-tempest-functional-wallaby
     parent: watcher-tempest-functional
-    nodeset: openstack-single-node-bionic
+    nodeset: openstack-single-node-focal
     override-checkout: stable/wallaby
-
-- job:
-    name: watcher-tempest-functional-victoria
-    parent: watcher-tempest-functional
-    nodeset: openstack-single-node-bionic
-    override-checkout: stable/victoria
-
-- job:
-    name: watcher-tempest-functional-ussuri
-    parent: watcher-tempest-functional
-    nodeset: openstack-single-node-bionic
-    override-checkout: stable/ussuri
-
-- job:
-    name: watcher-tempest-functional-train
-    parent: watcher-tempest-functional
-    nodeset: openstack-single-node-bionic
-    override-checkout: stable/train
-    vars:
-      devstack_localrc:
-        USE_PYTHON3: True
-
-- job:
-    name: watcher-tempest-functional-stein
-    parent: watcher-tempest-functional
-    nodeset: openstack-single-node-bionic
-    override-checkout: stable/stein
-    vars:
-      devstack_localrc:
-        USE_PYTHON3: True
