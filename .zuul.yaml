@@ -1,4 +1,5 @@
 - project:
+    queue: watcher
     templates:
       - check-requirements
       - tempest-plugin-jobs
@@ -8,13 +9,19 @@
         - watcher-tempest-functional
         - watcher-tempest-actuator
         - watcher-tempest-strategies
+        - watcher-tempest-functional-zed
         - watcher-tempest-functional-yoga
         - watcher-tempest-functional-xena
         - watcher-tempest-functional-wallaby
     gate:
-      queue: watcher
       jobs:
         - watcher-tempest-functional
+
+- job:
+    name: watcher-tempest-functional-zed
+    parent: watcher-tempest-functional
+    nodeset: openstack-single-node-focal
+    override-checkout: stable/zed
 
 - job:
     name: watcher-tempest-functional-yoga
