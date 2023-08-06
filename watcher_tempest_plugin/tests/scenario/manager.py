@@ -15,12 +15,10 @@
 #    under the License.
 
 from tempest.common import compute
-from tempest.common import image as common_image
 from tempest.common import waiters
 from tempest import config
 from tempest.lib.common.utils import data_utils
 from tempest.lib.common.utils import test_utils
-from tempest.lib import exceptions as lib_exc
 import tempest.test
 
 CONF = config.CONF
@@ -44,16 +42,7 @@ class ScenarioTest(tempest.test.BaseTestCase):
         cls.flavors_client = cls.os_primary.flavors_client
         cls.compute_floating_ips_client = (
             cls.os_primary.compute_floating_ips_client)
-        if CONF.service_available.glance:
-            # Check if glance v1 is available to determine which client to use.
-            if CONF.image_feature_enabled.api_v1:
-                cls.image_client = cls.os_primary.image_client
-            elif CONF.image_feature_enabled.api_v2:
-                cls.image_client = cls.os_primary.image_client_v2
-            else:
-                raise lib_exc.InvalidConfiguration(
-                    'Either api_v1 or api_v2 must be True in '
-                    '[image-feature-enabled].')
+        cls.image_client = cls.os_primary.image_client_v2
         # Compute image client
         cls.compute_images_client = cls.os_primary.compute_images_client
         cls.keypairs_client = cls.os_primary.keypairs_client
@@ -211,11 +200,7 @@ class ScenarioTest(tempest.test.BaseTestCase):
             clients = self.os_primary
 
         if imageRef:
-            if CONF.image_feature_enabled.api_v1:
-                resp = self.image_client.check_image(imageRef)
-                image = common_image.get_image_meta_from_headers(resp)
-            else:
-                image = self.image_client.show_image(imageRef)
+            image = self.image_client.show_image(imageRef)
             min_disk = image.get('min_disk')
             size = max(size, min_disk)
 
