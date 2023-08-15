@@ -9,6 +9,7 @@
         - watcher-tempest-functional
         - watcher-tempest-actuator
         - watcher-tempest-strategies
+        - watcher-tempest-functional-2023-1
         - watcher-tempest-functional-zed
         - watcher-tempest-functional-yoga
         - watcher-tempest-functional-xena
@@ -16,6 +17,12 @@
     gate:
       jobs:
         - watcher-tempest-functional
+
+- job:
+    name: watcher-tempest-functional-2023-1
+    parent: watcher-tempest-functional
+    nodeset: openstack-single-node-jammy
+    override-checkout: stable/2023.1
 
 - job:
     name: watcher-tempest-functional-zed
