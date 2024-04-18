@@ -9,41 +9,27 @@
         - watcher-tempest-functional
         - watcher-tempest-actuator
         - watcher-tempest-strategies
+        - watcher-tempest-functional-2024-1
+        - watcher-tempest-functional-2023-2
         - watcher-tempest-functional-2023-1
-        - watcher-tempest-functional-zed
-        - watcher-tempest-functional-yoga
-        - watcher-tempest-functional-xena
-        - watcher-tempest-functional-wallaby
     gate:
       jobs:
         - watcher-tempest-functional
+
+- job:
+    name: watcher-tempest-functional-2024-1
+    parent: watcher-tempest-functional
+    nodeset: openstack-single-node-jammy
+    override-checkout: stable/2024.1
+
+- job:
+    name: watcher-tempest-functional-2023-2
+    parent: watcher-tempest-functional
+    nodeset: openstack-single-node-jammy
+    override-checkout: stable/2023.2
 
 - job:
     name: watcher-tempest-functional-2023-1
     parent: watcher-tempest-functional
     nodeset: openstack-single-node-jammy
     override-checkout: stable/2023.1
-
-- job:
-    name: watcher-tempest-functional-zed
-    parent: watcher-tempest-functional
-    nodeset: openstack-single-node-focal
-    override-checkout: stable/zed
-
-- job:
-    name: watcher-tempest-functional-yoga
-    parent: watcher-tempest-functional
-    nodeset: openstack-single-node-focal
-    override-checkout: stable/yoga
-
-- job:
-    name: watcher-tempest-functional-xena
-    parent: watcher-tempest-functional
-    nodeset: openstack-single-node-focal
-    override-checkout: stable/xena
-
-- job:
-    name: watcher-tempest-functional-wallaby
-    parent: watcher-tempest-functional
-    nodeset: openstack-single-node-focal
-    override-checkout: stable/wallaby
