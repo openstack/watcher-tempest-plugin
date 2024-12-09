@@ -30,9 +30,10 @@ from tempest.lib.common import api_microversion_fixture
 from tempest.lib.common.utils import data_utils
 from tempest.lib.common.utils import test_utils
 from tempest.lib import exceptions
+from tempest.scenario import manager
 
 from watcher_tempest_plugin import infra_optim_clients as clients
-from watcher_tempest_plugin.tests.scenario import manager
+
 
 LOG = log.getLogger(__name__)
 CONF = config.CONF
@@ -47,6 +48,12 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
     AUDIT_FINISHED_STATES = ('FAILED', 'SUCCEEDED', 'CANCELLED', 'SUSPENDED')
     # States where the object can only be DELETED (end of its life-cycle)
     AP_FINISHED_STATES = ('FAILED', 'SUCCEEDED', 'CANCELLED', 'SUPERSEDED')
+
+    @classmethod
+    def skip_checks(cls):
+        super(manager.ScenarioTest, cls).skip_checks()
+        if not CONF.service_available.watcher:
+            raise cls.skipException('Watcher support is required')
 
     @classmethod
     def setup_credentials(cls):
