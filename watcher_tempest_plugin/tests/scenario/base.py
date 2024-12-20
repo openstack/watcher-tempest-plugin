@@ -302,6 +302,16 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
         return measures_body
 
     def make_host_statistic(self, metrics=dict()):
+        """Add host metrics to the datasource
+
+        :param metrics: The metrics add to resource when using Gnocchi
+        """
+        if not CONF.optimize.datasource:
+            pass
+        else:
+            self.make_host_statistic_gnocchi(metrics)
+
+    def make_host_statistic_gnocchi(self, metrics=dict()):
         """Create host resource and its measures in Gnocchi DB
 
         :param metrics: The metrics add to resource when using Gnocchi
@@ -337,6 +347,17 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
             return True
 
     def make_instance_statistic(self, instance, metrics=dict()):
+        """Add instance resources and its measures to the datasource
+
+        :param instance: Instance response body
+        :param metrics: The metrics add to resource when using datasource
+        """
+        if not CONF.optimize.datasource:
+            pass
+        else:
+            self.make_instance_statistic_gnocchi(instance, metrics)
+
+    def make_instance_statistic_gnocchi(self, instance, metrics=dict()):
         """Create instance resource and its measures in Gnocchi DB
 
         :param instance: Instance response body
