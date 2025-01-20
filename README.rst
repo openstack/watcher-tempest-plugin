@@ -2,19 +2,18 @@
 watcher-tempest-plugin
 ======================
 
-Description
+This repository contains a `Tempest`_ `test plugin`_ to verify the
+functionality of the `Watcher`_ service.
 
-Please fill here a long description which must be at least 3 lines wrapped on
-80 cols, so that distribution package maintainers can use it in their packages.
-Note that this is a hard requirement.
+See the following docs to learn more:
 
 * Free software: Apache license
-* Documentation: https://docs.openstack.org/watcher/latest/ plugin watcher-tempest-plugin
-* Release notes: https://docs.openstack.org/releasenotes/watcher/ plugin watcher-tempest-plugin
+* Documentation: https://docs.openstack.org/watcher-tempest-plugin/latest/
+* Release notes: https://docs.openstack.org/releasenotes/watcher-tempest-plugin/
 * Source: https://opendev.org/openstack/watcher-tempest-plugin
 * Bugs: https://bugs.launchpad.net/watcher plugin watcher-tempest-plugin
 
-Features
---------
+.. _Tempest: https://docs.openstack.org/tempest
+.. _test plugin: https://docs.openstack.org/tempest/latest/plugin.html
+.. _Watcher: https://docs.openstack.org/watcher/latest/
 
-* TODO
