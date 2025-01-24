@@ -11,6 +11,7 @@
         - watcher-tempest-actuator
         - watcher-tempest-strategies
         - watcher-tempest-functional-2025-1
+        - watcher-prometheus-integration
         - watcher-tempest-functional-2024-2
         - watcher-tempest-functional-2024-1
         - watcher-tempest-functional-2023-2

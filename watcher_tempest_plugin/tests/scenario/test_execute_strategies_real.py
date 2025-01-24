@@ -33,12 +33,6 @@ class TestRealExecuteStrategies(base.BaseInfraOptimScenarioTest):
     @classmethod
     def skip_checks(cls):
         super(TestRealExecuteStrategies, cls).skip_checks()
-        # TODO(amoralej) Remove this check once we have a mechanism to disable
-        # metrics injection as in https://review.opendev.org/940171
-        if CONF.optimize.datasource != "":
-            raise cls.skipException(
-                "optimize.datasource parameter must be empty to run real"
-                " load scenarios")
         if not CONF.network_feature_enabled.floating_ips:
             raise cls.skipException(
                 "network_feature_enabled.floating_ips option must be enabled")
@@ -63,10 +57,14 @@ class TestRealExecuteStrategies(base.BaseInfraOptimScenarioTest):
 
     @decorators.attr(type=['slow', 'real_load'])
     def test_workload_stabilization_strategy(self):
+        # This test does not require metrics injection
+        INJECT_METRICS = False
+
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
         instances = self._create_one_instance_per_host_with_statistic(
-            run_command=self.COMMANDS_CREATE_LOAD['instance_cpu_usage'])
+            run_command=self.COMMANDS_CREATE_LOAD['instance_cpu_usage'],
+            inject=INJECT_METRICS)
         self._pack_all_created_instances_on_one_host(instances)
         # This is the time that we want to generate metrics
         time.sleep(CONF.optimize.real_workload_period)

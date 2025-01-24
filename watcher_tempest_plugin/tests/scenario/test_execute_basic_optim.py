@@ -63,9 +63,14 @@ class TestExecuteBasicStrategy(base.BaseInfraOptimScenarioTest):
         - run the action plan
         - get results and make sure it succeeded
         """
+
+        # This test requires metrics injection
+        INJECT_METRICS = True
+
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
-        instances = self._create_one_instance_per_host_with_statistic()
+        instances = self._create_one_instance_per_host_with_statistic(
+            inject=INJECT_METRICS)
         # wait for compute model updates
         self.wait_for_instances_in_model(instances)
         self.make_host_statistic()

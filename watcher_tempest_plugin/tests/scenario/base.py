@@ -225,7 +225,8 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
         self.assertEqual(target_host, server_host, msg)
 
     def _create_one_instance_per_host_with_statistic(self, metrics=dict(),
-                                                     run_command=None):
+                                                     run_command=None,
+                                                     inject=True):
         """Create 1 instance per compute node and make instance statistic
 
         This goes up to the min_compute_nodes threshold so that things don't
@@ -233,6 +234,8 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
 
         :param metrics: The metrics add to resource when using Gnocchi
         :param run_command: the command you want to run in the new instances
+        :param inject: If set to True, inject metrics for created instances
+        :returns: A list of instance UUIDs.
         """
         compute_nodes = self.get_compute_nodes_setup()
         instances = self.mgr.servers_client.list_servers(
@@ -291,7 +294,8 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
             instance = self.mgr.servers_client.show_server(
                 instance['id'])['server']
             created_instances.append(instance)
-            self.make_instance_statistic(instance, metrics=metrics)
+            if inject:
+                self.make_instance_statistic(instance, metrics=metrics)
 
         return created_instances
 

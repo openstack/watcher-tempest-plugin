@@ -48,9 +48,13 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
                 "skipping multinode tests.")
 
     def test_execute_basic_strategy(self):
+        # This test does not require metrics injection
+        INJECT_METRICS = False
+
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
-        instances = self._create_one_instance_per_host_with_statistic()
+        instances = self._create_one_instance_per_host_with_statistic(
+            inject=INJECT_METRICS)
         # wait for compute model updates
         self.wait_for_instances_in_model(instances)
         self.make_host_statistic()
@@ -78,9 +82,13 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
                               **audit_kwargs)
 
     def test_execute_host_maintenance_strategy(self):
+        # This test does not require metrics injection
+        INJECT_METRICS = False
+
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
-        instances = self._create_one_instance_per_host_with_statistic()
+        instances = self._create_one_instance_per_host_with_statistic(
+            inject=INJECT_METRICS)
         hostname = instances[0].get('OS-EXT-SRV-ATTR:hypervisor_hostname')
         # wait for compute model updates
         self.wait_for_instances_in_model(instances)
@@ -110,6 +118,9 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
         self.execute_strategy(goal_name, strategy_name, **audit_kwargs)
 
     def test_execute_vm_workload_consolidation_strategy(self):
+        # This test requires metrics injection
+        INJECT_METRICS = True
+
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
         metrics = {
@@ -118,7 +129,8 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
             'instance_ram_allocated': {},
             'instance_root_disk_size': {},
         }
-        instances = self._create_one_instance_per_host_with_statistic(metrics)
+        instances = self._create_one_instance_per_host_with_statistic(
+            metrics, inject=INJECT_METRICS)
         # wait for compute model updates
         self.wait_for_instances_in_model(instances)
         self.make_host_statistic()
@@ -134,9 +146,13 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
         self.execute_strategy(goal_name, strategy_name, **audit_kwargs)
 
     def test_execute_workload_stabilization_strategy(self):
+        # This test requires metrics injection
+        INJECT_METRICS = True
+
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
-        instances = self._create_one_instance_per_host_with_statistic()
+        instances = self._create_one_instance_per_host_with_statistic(
+            inject=INJECT_METRICS)
         self._pack_all_created_instances_on_one_host(instances)
         # wait for compute model updates
         self.wait_for_instances_in_model(instances)
@@ -157,9 +173,13 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
         self.execute_strategy(goal_name, strategy_name, **audit_kwargs)
 
     def test_execute_zone_migration_live_migration_strategy(self):
+        # This test requires metrics injection
+        INJECT_METRICS = True
+
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
-        instances = self._create_one_instance_per_host_with_statistic()
+        instances = self._create_one_instance_per_host_with_statistic(
+            inject=INJECT_METRICS)
         node = instances[0].get('OS-EXT-SRV-ATTR:hypervisor_hostname')
         # wait for compute model updates
         self.wait_for_instances_in_model(instances)
@@ -180,9 +200,13 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
         self.execute_strategy(goal_name, strategy_name, **audit_kwargs)
 
     def test_execute_node_resource_consolidation_strategy_with_auto(self):
+        # This test does not require metrics injection
+        INJECT_METRICS = False
+
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
-        instances = self._create_one_instance_per_host_with_statistic()
+        instances = self._create_one_instance_per_host_with_statistic(
+            inject=INJECT_METRICS)
         # wait for compute model updates
         self.wait_for_instances_in_model(instances)
 
@@ -197,9 +221,13 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
         self.execute_strategy(goal_name, strategy_name, **audit_kwargs)
 
     def test_execute_node_resource_consolidation_strategy_with_specify(self):
+        # This test does not require metrics injection
+        INJECT_METRICS = False
+
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
-        instances = self._create_one_instance_per_host_with_statistic()
+        instances = self._create_one_instance_per_host_with_statistic(
+            inject=INJECT_METRICS)
         # wait for compute model updates
         self.wait_for_instances_in_model(instances)
 

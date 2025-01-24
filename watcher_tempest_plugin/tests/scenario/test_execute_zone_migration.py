@@ -27,6 +27,8 @@ class TestExecuteZoneMigrationStrategy(base.BaseInfraOptimScenarioTest):
     """Tests for action plans"""
 
     GOAL = "hardware_maintenance"
+    # This test does not require metrics injection
+    INJECT_METRICS = False
 
     @classmethod
     def skip_checks(cls):

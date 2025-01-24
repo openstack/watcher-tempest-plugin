@@ -57,9 +57,14 @@ class TestExecuteHostMaintenanceStrategy(base.BaseInfraOptimScenarioTest):
 
     def test_execute_host_maintenance(self):
         """Execute an action plan using the host_maintenance strategy"""
+        # This test does not require metrics injection
+        INJECT_METRICS = False
+
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
-        instances = self._create_one_instance_per_host_with_statistic()
+        instances = self._create_one_instance_per_host_with_statistic(
+            inject=INJECT_METRICS
+        )
         hostname = instances[0].get('OS-EXT-SRV-ATTR:hypervisor_hostname')
         audit_parameters = {"maintenance_node": hostname}
         # wait for compute model updates
