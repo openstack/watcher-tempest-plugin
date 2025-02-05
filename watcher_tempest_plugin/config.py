@@ -21,3 +21,15 @@ service_option = cfg.BoolOpt("watcher",
                              default=True,
                              help="Whether or not watcher is expected to be "
                                   "available")
+
+optimization_group = cfg.OptGroup(name="optimize",
+                                  title="Watcher Service Options")
+
+OptimizationGroup = [
+    cfg.StrOpt("datasource",
+               default="gnocchi",
+               choices=["gnocchi", ""],
+               help="Name of the data source used with the Watcher Service"
+                    "gnocchi is a supported datasources. use ''"
+                    "for no datasource"),
+]

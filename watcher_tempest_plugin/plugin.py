@@ -30,5 +30,12 @@ class WatcherTempestPlugin(plugins.TempestPlugin):
         conf.register_opt(watcher_config.service_option,
                           group='service_available')
 
+        conf.register_group(watcher_config.optimization_group)
+        conf.register_opts(watcher_config.OptimizationGroup,
+                           watcher_config.optimization_group)
+
     def get_opt_lists(self):
-        return [('service_available', [watcher_config.service_option])]
+        return [('service_available', [watcher_config.service_option]),
+                (watcher_config.optimization_group.name,
+                watcher_config.OptimizationGroup)
+                ]
