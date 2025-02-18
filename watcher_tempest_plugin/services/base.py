@@ -16,6 +16,7 @@
 
 import abc
 import functools
+import subprocess
 
 import urllib.parse as urlparse
 
@@ -207,3 +208,19 @@ class BaseClient(rest_client.RestClient, metaclass=abc.ABCMeta):
         resp, body = self.put(uri, body=put_body)
         self.expected_success(202, int(resp['status']))
         return resp, body
+
+
+class SubProcessCmdClient:
+    """Command execution client based on subprocess"""
+
+    def exec_command(self, cmd, input_data=None, timeout=None):
+        """Execute a command with an optional input data.
+
+        :param input_data: data to be sent to process stdin
+        :param timeout: communication timeout in seconds
+        """
+        sp = subprocess.Popen(cmd,
+                              stdout=subprocess.PIPE,
+                              stdin=subprocess.PIPE,
+                              stderr=subprocess.PIPE, text=True)
+        return sp.communicate(input=input_data, timeout=timeout)

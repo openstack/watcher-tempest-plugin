@@ -24,6 +24,7 @@ from tempest.lib.common import rest_client
 from tempest.lib.services.placement import placement_client
 
 from watcher_tempest_plugin.services.infra_optim.v1.json import client as ioc
+from watcher_tempest_plugin.services.metric import prometheus_client as pc
 from watcher_tempest_plugin.services.metric.v1.json import client as gc
 
 CONF = config.CONF
@@ -39,6 +40,11 @@ class BaseManager(clients.Manager, metaclass=abc.ABCMeta):
             self.auth_provider, 'metric', CONF.identity.region)
         self.placement_client = ExtendPlacementClient(
             self.auth_provider, 'placement', CONF.identity.region)
+        # TODO(dviroel): add support for https
+        self.prometheus_client = pc.PromtoolClient(
+            "http://{}:{}".format(CONF.optimize.prometheus_host,
+                                  CONF.optimize.prometheus_port),
+            promtool_path=CONF.optimize.prometheus_promtool)
 
 
 class AdminManager(BaseManager):

@@ -103,18 +103,10 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
     def test_execute_vm_workload_consolidation_strategy(self):
         self.addCleanup(self.rollback_compute_nodes_status)
         metrics = {
-            'cpu_util': {
-                'archive_policy_name': 'low'
-            },
-            'memory.resident': {
-                'archive_policy_name': 'low'
-            },
-            'memory': {
-                'archive_policy_name': 'low'
-            },
-            'disk.root.size': {
-                'archive_policy_name': 'low'
-            }
+            'instance_cpu_usage': {},
+            'instance_ram_usage': {},
+            'instance_ram_allocated': {},
+            'instance_root_disk_size': {},
         }
         self._create_one_instance_per_host_with_statistic(metrics)
 

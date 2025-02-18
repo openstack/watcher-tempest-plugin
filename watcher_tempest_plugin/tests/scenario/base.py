@@ -17,6 +17,7 @@
 #
 
 import functools
+import json
 import random
 import time
 
@@ -49,6 +50,29 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
     # States where the object can only be DELETED (end of its life-cycle)
     AP_FINISHED_STATES = ('FAILED', 'SUCCEEDED', 'CANCELLED', 'SUPERSEDED')
 
+    # Metric map used to add or retrieve metrics on Prometheus
+    # NOTE(dviroel): This maps metrics consumed from Prometheus server,
+    #  but the datasource may support other metrics from the model.
+    PROMETHEUS_METRIC_MAP = dict(
+        host_cpu_usage='node_cpu_seconds_total',
+        host_ram_usage='node_memory_MemAvailable_bytes',
+        instance_cpu_usage='ceilometer_cpu',
+        instance_ram_usage='ceilometer_memory_usage')
+
+    # Metric map used to add or retrieve metrics on Gnocchi
+    GNOCCHI_METRIC_MAP = dict(
+        host_cpu_usage='compute.node.cpu.percent',
+        host_ram_usage='hardware.memory.used',
+        host_outlet_temp='hardware.ipmi.node.outlet_temperature',
+        host_inlet_temp='hardware.ipmi.node.temperature',
+        host_airflow='hardware.ipmi.node.airflow',
+        host_power='hardware.ipmi.node.power',
+        instance_cpu_usage='cpu',
+        instance_ram_usage='memory.resident',
+        instance_ram_allocated='memory',
+        instance_l3_cache_usage='cpu_l3_cache',
+        instance_root_disk_size='disk.root.size',)
+
     @classmethod
     def skip_checks(cls):
         super(manager.ScenarioTest, cls).skip_checks()
@@ -67,6 +91,7 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
         cls.client = cls.mgr.io_client
         cls.gnocchi = cls.mgr.gn_client
         cls.placement_client = cls.mgr.placement_client
+        cls.prometheus_client = cls.mgr.prometheus_client
 
     def setUp(self):
         super(BaseInfraOptimScenarioTest, self).setUp()
@@ -282,15 +307,6 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
             body = body[0]
         return resp, body
 
-    def add_measures(self, metric_uuid, body):
-        """Wrapper utility for creating a test measures for metric
-
-        :param metric_uuid: The unique identifier of the metric
-        :return: A tuple with The HTTP response and empty body
-        """
-        resp, body = self.gnocchi.add_measures(metric_uuid, body)
-        return resp, body
-
     def _make_measures(self, measures_count, time_step):
         measures_body = []
         for i in range(1, measures_count + 1):
@@ -304,26 +320,35 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
     def make_host_statistic(self, metrics=dict()):
         """Add host metrics to the datasource
 
-        :param metrics: The metrics add to resource when using Gnocchi
+        :param metrics: Metrics that should be created
+          in the configured datasource.
         """
-        if not CONF.optimize.datasource:
-            pass
-        else:
+        # data sources that support fake metrics
+        if CONF.optimize.datasource == "gnocchi":
             self.make_host_statistic_gnocchi(metrics)
+        elif CONF.optimize.datasource == "prometheus":
+            self.make_host_statistic_prometheus()
 
     def make_host_statistic_gnocchi(self, metrics=dict()):
-        """Create host resource and its measures in Gnocchi DB
+        """Create host resource and its measures
 
-        :param metrics: The metrics add to resource when using Gnocchi
+        :param metrics: Metrics that should be created
+          in the Gnocchi datasource.
         """
         hypervisors_client = self.mgr.hypervisor_client
         hypervisors = hypervisors_client.list_hypervisors(
             detail=True)['hypervisors']
         if metrics == dict():
             metrics = {
-                'compute.node.cpu.percent': {
+                self.GNOCCHI_METRIC_MAP['host_cpu_usage']: {
                     'archive_policy_name': 'low'
                 }
+            }
+        else:
+            metrics = {
+                self.GNOCCHI_METRIC_MAP[m]: {
+                    'archive_policy_name': 'low'
+                } for m in metrics.keys()
             }
         for h in hypervisors:
             host_name = "%s_%s" % (h['hypervisor_hostname'],
@@ -335,8 +360,11 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
                 'id': host_name
             }
             _, res = self.create_resource(**resource_params)
-            metric_uuid = res['metrics']['compute.node.cpu.percent']
-            self.add_measures(metric_uuid, self._make_measures(3, 5))
+            metric_uuid = res['metrics'][
+                self.GNOCCHI_METRIC_MAP['host_cpu_usage']
+            ]
+            # Generate host_cpu_usage fake metrics
+            self.gnocchi.add_measures(metric_uuid, self._make_measures(3, 5))
 
     def _show_measures(self, metric_uuid):
         try:
@@ -350,12 +378,14 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
         """Add instance resources and its measures to the datasource
 
         :param instance: Instance response body
-        :param metrics: The metrics add to resource when using datasource
+        :param metrics: Metrics that should be created
+          in the configured datasource.
         """
-        if not CONF.optimize.datasource:
-            pass
-        else:
+        # data sources that support fake metrics
+        if CONF.optimize.datasource == "gnocchi":
             self.make_instance_statistic_gnocchi(instance, metrics)
+        elif CONF.optimize.datasource == "prometheus":
+            self.make_instance_statistic_prometheus(instance)
 
     def make_instance_statistic_gnocchi(self, instance, metrics=dict()):
         """Create instance resource and its measures in Gnocchi DB
@@ -368,9 +398,15 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
         flavor = [f for f in all_flavors if f['name'] == flavor_name]
         if metrics == dict():
             metrics = {
-                'cpu_util': {
+                self.GNOCCHI_METRIC_MAP["instance_cpu_usage"]: {
                     'archive_policy_name': 'low'
                 }
+            }
+        else:
+            metrics = {
+                self.GNOCCHI_METRIC_MAP[m]: {
+                    'archive_policy_name': 'low'
+                } for m in metrics.keys()
             }
         resource_params = {
             'type': 'instance',
@@ -383,8 +419,11 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
             'id': instance['id']
         }
         _, res = self.create_resource(**resource_params)
-        metric_uuid = res['metrics']['cpu_util']
-        self.add_measures(metric_uuid, self._make_measures(3, 5))
+        # Generates cpu fake metrics
+        metric_uuid = res['metrics'][
+            self.GNOCCHI_METRIC_MAP["instance_cpu_usage"]
+        ]
+        self.gnocchi.add_measures(metric_uuid, self._make_measures(3, 5))
 
         self.assertTrue(test_utils.call_until_true(
             func=functools.partial(
@@ -392,6 +431,115 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
             duration=600,
             sleep_for=2
         ))
+
+    # ### PROMETHEUS ### #
+    def _generate_prometheus_metrics(self,
+                                     metric_name,
+                                     metric_type="counter",
+                                     labels={},
+                                     count=10,
+                                     interval_secs=30,
+                                     add_unique_label=True,
+                                     inc_factor=0.8,
+                                     start_value=1.0):
+        """Generates multiple samples for a given metric.
+
+
+        Samples are generate for a time interval defined by
+        the provided 'interval_secs' and the number of
+        samples (count) parameters, where the most recent
+        sample will be datetime.now().
+
+        :param metric_name: the name of the metric.
+        :param metric_type: type of the metric.
+        :param labels: labels to be added to each sample.
+        :param count: number of samples to be generated.
+        :param interval_sec: seconds between each generated
+          sample.
+        :param add_unique_label: when set to True, a unique
+          label pair will be added to all samples, thus
+          creating a new series in prometheus. Providing a
+          different label pair for every metric generation
+          will have the same effect.
+        :param inc_factor: factor used when calculating the
+          value of a sample, which is a factor of the sample's
+          interval.
+        :param start_value: value of the first sample to be
+          generated.
+
+        :return: String with all samples for a given metric.
+        """
+        # timestamp needs to be in milliseconds
+        ts_now_ms = int(datetime.now().timestamp()*1000)
+
+        # NOTE(dviroel): by including a unique label value, we avoid the
+        #  'out of order sample' error when pushing multiple
+        #  samples to prometheus that overlap the timestamp
+        if add_unique_label:
+            labels.update({"orig_timestamp": str(ts_now_ms)})
+
+        # convert labels to exposition format
+        str_labels = ""
+        if labels:
+            str_labels = json.dumps(labels, separators=(',', '='))
+
+        # timestamp is in ms
+        step_ms = interval_secs * 1000
+        data = '# TYPE %s %s\n' % (metric_name, metric_type)
+        # generate 'count' samples with incremental values
+        # samples need to be ordered by their timestamp
+        value = start_value
+        for i in range(count, 0, -1):
+            value += inc_factor * interval_secs
+            data += '%s%s %s %s\n' % (
+                metric_name, str_labels,
+                value, ts_now_ms - step_ms * i
+            )
+        return data
+
+    def make_instance_statistic_prometheus(self, instance):
+        """Create Prometheus metrics for a instance
+
+        :param instance: Instance response body
+        """
+        instance_labels = {
+            "resource": instance['id'],
+        }
+        # Generate cpu usage data for a instance
+        # unit is ns, so for a 80%, inc_factor is 0.8 * 1e+9
+        data = self._generate_prometheus_metrics(
+            self.PROMETHEUS_METRIC_MAP['instance_cpu_usage'],
+            labels=instance_labels,
+            start_value=1.0,
+            inc_factor=8e+8)
+
+        self.prometheus_client.add_measures(data)
+
+    def make_host_statistic_prometheus(self):
+        """Create host resource and its measures in Prometheus. """
+
+        hypervisors_client = self.mgr.hypervisor_client
+        hypervisors = hypervisors_client.list_hypervisors(
+            detail=True)['hypervisors']
+
+        for h in hypervisors:
+            host_labels = {
+                # TODO(dviroel): some targets may use their IP
+                # instead. We would need to query prometheus about
+                # targets and check fqdn label
+                "instance": h['hypervisor_hostname'] + ":9100",
+                "fqdn": h['hypervisor_hostname'],
+                "mode": "idle",
+            }
+            # Generate host usage data
+            # unit is seconds, that represent cpu in idle
+            data = self._generate_prometheus_metrics(
+                self.PROMETHEUS_METRIC_MAP['host_cpu_usage'],
+                labels=host_labels,
+                start_value=1.0,
+                inc_factor=0.2)
+
+            self.prometheus_client.add_measures(data)
 
     # ### AUDIT TEMPLATES ### #
 
