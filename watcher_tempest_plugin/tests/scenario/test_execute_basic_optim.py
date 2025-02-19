@@ -64,8 +64,12 @@ class TestExecuteBasicStrategy(base.BaseInfraOptimScenarioTest):
         - get results and make sure it succeeded
         """
         self.addCleanup(self.rollback_compute_nodes_status)
-        self._create_one_instance_per_host_with_statistic()
+        self.addCleanup(self.wait_delete_instances_from_model)
+        instances = self._create_one_instance_per_host_with_statistic()
         self.make_host_statistic()
+
+        # wait for compute model updates
+        self.wait_for_instances_in_model(instances)
 
         _, goal = self.client.show_goal(self.GOAL_NAME)
         _, strategy = self.client.show_strategy("basic")
