@@ -36,6 +36,35 @@ OptimizationGroup = [
              "tests that do not require instance or host metrics, "
              "you can define this option to an empty string."),
     cfg.StrOpt(
+        "openstack_type",
+        default="devstack",
+        choices=["devstack", "podified"],
+        help="Type of OpenStack deployment.",
+    ),
+    # Proxy host configuration
+    cfg.StrOpt(
+        "proxy_host_address",
+        default="",
+        help="A proxy host to run extra commands for some datasources.",
+    ),
+    cfg.StrOpt(
+        "proxy_host_user",
+        default="",
+        help="User of the proxy host to run extra commands for "
+             "some datasources.",
+    ),
+    cfg.StrOpt(
+        "proxy_host_pkey",
+        default="",
+        help="Path to a private key to access the proxy host.",
+    ),
+    cfg.StrOpt(
+        "proxy_host_pkey_type",
+        default="rsa",
+        help="Private key type to be used to access the proxy host.",
+    ),
+    # Prometheus datasource configuration
+    cfg.StrOpt(
         "prometheus_host",
         default="127.0.0.1",
         help="The hostname or IP address for the prometheus server.",
@@ -49,5 +78,35 @@ OptimizationGroup = [
         "prometheus_promtool",
         default="promtool",
         help="The promtool binary path in the host.",
+    ),
+    cfg.BoolOpt(
+        "prometheus_ssl_enabled",
+        default=False,
+        help="Whether or not SSL is enabled in prometheus server.",
+    ),
+    cfg.StrOpt(
+        "prometheus_ssl_cert_dir",
+        default="",
+        help="Path to directory that constains certificates needed to "
+             "interact with the Prometheus server.",
+    ),
+    cfg.StrOpt(
+        "prometheus_fqdn_label",
+        default="fqdn",
+        help="The label that Prometheus uses to store the fqdn of "
+             "exporters.",
+    ),
+    # Podified control plane configuration
+    cfg.StrOpt(
+        "podified_kubeconfig_path",
+        default="",
+        help="Path to a kubeconfig file, to run 'oc' commands in a "
+             "podified control plane environment."
+    ),
+    cfg.StrOpt(
+        "podified_namespace",
+        default="openstack",
+        help="Namespace where OpenStack is deployed in a podified "
+             "control plane environment."
     ),
 ]
