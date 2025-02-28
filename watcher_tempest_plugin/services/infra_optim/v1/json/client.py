@@ -19,10 +19,22 @@ from oslo_utils import uuidutils
 from watcher_tempest_plugin.services import base
 
 
+INFRA_OPTIM_VERSION = '1.4'
+
+
 class InfraOptimClientJSON(base.BaseClient):
     """Base Tempest REST client for Watcher API v1."""
 
     URI_PREFIX = 'v1'
+
+    api_microversion_header_name = 'OpenStack-API-Version'
+
+    def get_headers(self):
+        headers = super(InfraOptimClientJSON, self).get_headers()
+        if INFRA_OPTIM_VERSION:
+            headers[self.api_microversion_header_name] = (
+                " ".join(["infra-optim", INFRA_OPTIM_VERSION]))
+        return headers
 
     def serialize(self, object_dict):
         """Serialize an Watcher object."""
@@ -329,3 +341,10 @@ class InfraOptimClientJSON(base.BaseClient):
         :return: Serialized service as a dictionary
         """
         return self._show_request('/services', service)
+
+    # ### DATA MODEL ### #
+
+    @base.handle_errors
+    def list_data_models(self, **kwargs):
+        """List data models"""
+        return self._list_request('/data_model', **kwargs)

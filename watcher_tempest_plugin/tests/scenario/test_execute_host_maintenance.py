@@ -58,9 +58,12 @@ class TestExecuteHostMaintenanceStrategy(base.BaseInfraOptimScenarioTest):
     def test_execute_host_maintenance(self):
         """Execute an action plan using the host_maintenance strategy"""
         self.addCleanup(self.rollback_compute_nodes_status)
+        self.addCleanup(self.wait_delete_instances_from_model)
         instances = self._create_one_instance_per_host_with_statistic()
         hostname = instances[0].get('OS-EXT-SRV-ATTR:hypervisor_hostname')
         audit_parameters = {"maintenance_node": hostname}
+        # wait for compute model updates
+        self.wait_for_instances_in_model(instances)
 
         _, goal = self.client.show_goal(self.GOAL)
         _, strategy = self.client.show_strategy("host_maintenance")

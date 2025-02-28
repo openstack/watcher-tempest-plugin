@@ -731,3 +731,45 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
             return True
         else:
             return False
+
+    def wait_for_instances_in_model(self, instances, timeout=300):
+        """Waits until all instance ids are mapped to a model."""
+        timeout_end = time.time() + timeout
+
+        _, body = self.client.list_data_models(data_model_type="compute")
+        model_uuids = [s["server_uuid"]
+                       for s in body.get("context", []) if "server_uuid" in s]
+
+        ids = [instance['id'] for instance in instances]
+        while not set(ids) <= set(model_uuids):
+            time.sleep(15)
+            if time.time() >= timeout_end:
+                raise Exception("Instances are not mapped to compute model.")
+
+            _, body = self.client.list_data_models(data_model_type="compute")
+            model_uuids = [
+                s["server_uuid"]
+                for s in body.get("context", []) if "server_uuid" in s]
+
+    def wait_delete_instances_from_model(self, timeout=300):
+        """Waits until all deleted instaces be removed from model."""
+        timeout_end = time.time() + timeout
+
+        _, body = self.client.list_data_models(data_model_type="compute")
+        model_uuids = [s["server_uuid"]
+                       for s in body.get("context", []) if "server_uuid" in s]
+        instances = self.mgr.servers_client.list_servers(
+            detail=True)['servers']
+
+        ids = [instance['id'] for instance in instances]
+
+        while not set(model_uuids) <= set(ids):
+            time.sleep(15)
+            if time.time() >= timeout_end:
+                raise Exception("Compute model still contains instances "
+                                "that were already deleted. Failing...")
+
+            _, body = self.client.list_data_models(data_model_type="compute")
+            model_uuids = [
+                s["server_uuid"]
+                for s in body.get("context", []) if "server_uuid" in s]
