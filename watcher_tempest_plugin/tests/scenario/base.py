@@ -518,28 +518,29 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
     def make_host_statistic_prometheus(self):
         """Create host resource and its measures in Prometheus. """
 
-        hypervisors_client = self.mgr.hypervisor_client
-        hypervisors = hypervisors_client.list_hypervisors(
-            detail=True)['hypervisors']
+        hypervisors = self.get_hypervisors_setup()
 
         for h in hypervisors:
-            host_labels = {
-                # TODO(dviroel): some targets may use their IP
-                # instead. We would need to query prometheus about
-                # targets and check fqdn label
-                "instance": h['hypervisor_hostname'] + ":9100",
-                "fqdn": h['hypervisor_hostname'],
-                "mode": "idle",
-            }
-            # Generate host usage data
-            # unit is seconds, that represent cpu in idle
-            data = self._generate_prometheus_metrics(
-                self.PROMETHEUS_METRIC_MAP['host_cpu_usage'],
-                labels=host_labels,
-                start_value=1.0,
-                inc_factor=0.2)
+            instance = self.prometheus_client.prometheus_instances.get(
+                h['hypervisor_hostname'], None)
+            if not instance:
+                LOG.info(f"Hostname {h['hypervisor_hostname']} does not "
+                         "map to any prometheus instance.")
+            else:
+                host_labels = {
+                    "instance": instance,
+                    "fqdn": h['hypervisor_hostname'],
+                    "mode": "idle",
+                }
+                # Generate host usage data
+                # unit is seconds, that represent cpu in idle
+                data = self._generate_prometheus_metrics(
+                    self.PROMETHEUS_METRIC_MAP['host_cpu_usage'],
+                    labels=host_labels,
+                    start_value=1.0,
+                    inc_factor=0.2)
 
-            self.prometheus_client.add_measures(data)
+                self.prometheus_client.add_measures(data)
 
     # ### AUDIT TEMPLATES ### #
 

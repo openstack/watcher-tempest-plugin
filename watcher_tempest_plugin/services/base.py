@@ -15,12 +15,17 @@
 # limitations under the License.
 
 import abc
+import base64
 import functools
 import subprocess
 
 import urllib.parse as urlparse
 
+from tempest import config
 from tempest.lib.common import rest_client
+from tempest.lib.common import ssh
+
+CONF = config.CONF
 
 
 def handle_errors(f):
@@ -210,17 +215,100 @@ class BaseClient(rest_client.RestClient, metaclass=abc.ABCMeta):
         return resp, body
 
 
-class SubProcessCmdClient:
-    """Command execution client based on subprocess"""
+class BaseCmdClient(metaclass=abc.ABCMeta):
 
-    def exec_command(self, cmd, input_data=None, timeout=None):
+    @abc.abstractmethod
+    def exec_cmd(self, cmd, input_data=None, timeout=None):
         """Execute a command with an optional input data.
 
+        :param cmd: command to be execute, which can be a string
+            or a sequence of arguments.
         :param input_data: data to be sent to process stdin
         :param timeout: communication timeout in seconds
+
+        :return: output written to stdout.
+        :raises: Exception when command fails.
+        """
+        pass
+
+
+class SubProcessCmdClient(BaseCmdClient):
+    """Command execution client based on subprocess"""
+
+    def exec_cmd(self, cmd, input_data=None, timeout=None):
+        """Execute a command with an optional input data.
+
+        :param cmd: command to be execute, which can be a string
+          or a sequence of arguments.
+        :param input_data: data to be sent to process stdin
+        :param timeout: communication timeout in seconds
+
+        :return: output written to stdout.
+        :raises: Exception when command fails.
         """
         sp = subprocess.Popen(cmd,
                               stdout=subprocess.PIPE,
                               stdin=subprocess.PIPE,
                               stderr=subprocess.PIPE, text=True)
-        return sp.communicate(input=input_data, timeout=timeout)
+        out, err = sp.communicate(input=input_data, timeout=timeout)
+
+        if len(err) > 1:
+            raise Exception(f"Subprocess command failed with: {err}")
+
+        return out
+
+
+class SshCmdClient(BaseCmdClient, ssh.Client):
+
+    def __init__(self, host, username, password=None, timeout=300, pkey=None,
+                 channel_timeout=10, look_for_keys=True, key_filename=None,
+                 port=22, pkey_type='rsa'):
+
+        # Prefix to be always include in all commands
+        self._cmd_prefix = ""
+
+        super(SshCmdClient, self).__init__(
+            host=host, username=username, password=password, timeout=timeout,
+            pkey=pkey, channel_timeout=channel_timeout,
+            look_for_keys=look_for_keys, key_filename=key_filename, port=port,
+            ssh_key_type=pkey_type)
+
+    @property
+    def cmd_prefix(self):
+        return self._cmd_prefix
+
+    @cmd_prefix.setter
+    def cmd_prefix(self, value):
+        self._cmd_prefix = value
+
+    def exec_cmd(self, cmd, input_data=None, timeout=None):
+        """Execute a command with an optional input data.
+
+        :param cmd: command to be execute, which can be a string
+            or a sequence of arguments.
+        :param input_data: data to be sent to process stdin
+        :param timeout: communication timeout in seconds
+
+        :return: output written to stdout.
+        :raises: Exception when command fails.
+        """
+        cmd_str = " ".join(cmd) if isinstance(cmd, list) else cmd
+
+        if input_data:
+            # if stdin data, encode to base64 and decode in the remote host
+            b64_input_str = base64.b64encode(
+                input_data.encode("ascii")).decode("ascii")
+            cmd_str = (
+                f"sh -c \"echo \"{b64_input_str}\" | base64 -d | {cmd_str}\"")
+
+        if self.cmd_prefix:
+            cmd_str = f"{self.cmd_prefix} {cmd_str}"
+
+        if timeout:
+            original_timeout = self.timeout
+            self.timeout = timeout
+        try:
+            return super(SshCmdClient, self).exec_command(cmd=cmd_str)
+        finally:
+            if timeout:
+                self.timeout = original_timeout

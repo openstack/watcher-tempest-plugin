@@ -40,11 +40,22 @@ class BaseManager(clients.Manager, metaclass=abc.ABCMeta):
             self.auth_provider, 'metric', CONF.identity.region)
         self.placement_client = ExtendPlacementClient(
             self.auth_provider, 'placement', CONF.identity.region)
-        # TODO(dviroel): add support for https
+        prom_ssl = "s" if CONF.optimize.prometheus_ssl_enabled else ""
         self.prometheus_client = pc.PromtoolClient(
-            "http://{}:{}".format(CONF.optimize.prometheus_host,
-                                  CONF.optimize.prometheus_port),
-            promtool_path=CONF.optimize.prometheus_promtool)
+            "http{}://{}:{}".format(prom_ssl,
+                                    CONF.optimize.prometheus_host,
+                                    CONF.optimize.prometheus_port),
+            promtool_path=CONF.optimize.prometheus_promtool,
+            openstack_type=CONF.optimize.openstack_type,
+            proxy_host_address=CONF.optimize.proxy_host_address,
+            proxy_host_user=CONF.optimize.proxy_host_user,
+            proxy_host_pkey=CONF.optimize.proxy_host_pkey,
+            proxy_host_pkey_type=CONF.optimize.proxy_host_pkey_type,
+            podified_ns=CONF.optimize.podified_namespace,
+            podified_kubeconfig=CONF.optimize.podified_kubeconfig_path,
+            prometheus_ssl_cert=CONF.optimize.prometheus_ssl_cert_dir,
+            prometheus_fqdn_label=CONF.optimize.prometheus_fqdn_label,
+        )
 
 
 class AdminManager(BaseManager):

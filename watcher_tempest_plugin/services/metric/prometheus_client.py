@@ -12,20 +12,98 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import json
+
+from oslo_log import log
+
 from watcher_tempest_plugin.services import base
+
+LOG = log.getLogger(__name__)
 
 
 class PromtoolClient:
     """Promtool client to push/query metrics to/from Prometheus."""
 
-    def __init__(self, url, promtool_path="promtool"):
-        # NOTE: only subprocess client is support for now.
-        #  A ssh client can be added to execute promtool in
-        #  a proxy host
-        self.client = base.SubProcessCmdClient()
+    def __init__(self, url, promtool_path="promtool",
+                 openstack_type="devstack",
+                 proxy_host_address=None, proxy_host_user=None,
+                 proxy_host_pkey=None, proxy_host_pkey_type='rsa',
+                 podified_ns=None, podified_kubeconfig=None,
+                 prometheus_ssl_cert=None,
+                 prometheus_fqdn_label="fqdn"):
+
+        # Podified Control Plane
+        self.is_podified = ("podified" == openstack_type)
+        LOG.debug(f"Configuring PromtoolClient for {openstack_type} "
+                  " deployment.")
+        self.podified_ns = podified_ns
+        self.oc_cmd = ['oc']
+        if podified_kubeconfig:
+            self.oc_cmd.insert(0, f"KUBECONFIG={podified_kubeconfig}")
+        if podified_ns:
+            self.oc_cmd += ['-n', self.podified_ns]
+
+        if proxy_host_address and proxy_host_user:
+            self.client = base.SshCmdClient(
+                host=proxy_host_address,
+                username=proxy_host_user,
+                pkey=(proxy_host_pkey or None),
+                pkey_type=proxy_host_pkey_type,
+            )
+        else:
+            self.client = base.SubProcessCmdClient()
+
+        if self.is_podified:
+            # podified control plane will run promtool inside
+            # prometheus container
+            self.prometheus_pod = self.get_prometheus_pod()
+            cmd_prefix = self.oc_cmd + ["rsh", self.prometheus_pod]
+            self.client.cmd_prefix = " ".join(cmd_prefix)
+
         self.prometheus_url = url
         self.prometheus_write_url = url + "/api/v1/write"
-        self.promtool_path = promtool_path
+        # active targets
+        self.prometheus_targets_url = url + "/api/v1/targets?state=active"
+        self.prometheus_fqdn_label = prometheus_fqdn_label
+        self.promtool_cmd = [promtool_path]
+        if prometheus_ssl_cert:
+            self.promtool_cmd.insert(0, f"SSL_CERT_DIR={prometheus_ssl_cert}")
+        # Map hostnames and fqdn to prometheus instances
+        self._prometheus_instances = {}
+
+    @property
+    def prometheus_instances(self):
+        if not self._prometheus_instances:
+            self._build_host_fqdn_maps()
+        return self._prometheus_instances
+
+    def _build_host_fqdn_maps(self):
+        # NOTE(dviroel): Promtool does not support 'targets'
+        # endpoint.
+        cmd = ['curl', '-k', '-s', self.prometheus_targets_url]
+
+        out = self.client.exec_cmd(cmd)
+
+        targets = json.loads(out)['data']['activeTargets']
+
+        # 1. builds based on fqdn
+        self._prometheus_instances = {
+            fqdn: instance for (fqdn, instance) in (
+                (target['labels'].get(self.prometheus_fqdn_label),
+                 target['labels'].get('instance'))
+                for target in targets
+                if target.get('labels', {}).get(self.prometheus_fqdn_label)
+            )
+        }
+        # 2. update with hostname
+        host_instance_map = {
+            host: instance for (host, instance) in (
+                (fqdn.split('.')[0], inst)
+                for fqdn, inst in self._prometheus_instances.items()
+                if '.' in fqdn
+            )
+        }
+        self._prometheus_instances.update(host_instance_map)
 
     def show_instant_measure(self, expr):
         """Sends instance query to Prometheus server.
@@ -33,16 +111,10 @@ class PromtoolClient:
         :param expr: promql query expression to be sent
           to Prometheus.
         """
+        cmd = self.promtool_cmd + [
+            "query", "instant", self.prometheus_url, expr]
 
-        cmd = [self.promtool_path,
-               "query", "instant",
-               self.prometheus_url, expr]
-
-        out, err = self.client.exec_command(cmd)
-
-        if len(err) > 1:
-            raise Exception(err)
-        return out
+        return self.client.exec_cmd(cmd)
 
     def add_measures(self, input_data):
         """Add measures resources with the specified parameters.
@@ -50,11 +122,42 @@ class PromtoolClient:
         :param input_data: metric data  in exposition format,
           to be pushed to prometheus.
         """
-        cmd = [self.promtool_path,
-               "push", "metrics",
-               self.prometheus_write_url]
+        cmd = self.promtool_cmd + [
+            "push", "metrics", self.prometheus_write_url]
 
-        out, err = self.client.exec_command(cmd, input_data=input_data)
+        out = self.client.exec_cmd(cmd, input_data=input_data)
 
-        if "SUCCESS" not in out or len(err) > 1:
-            raise Exception(err)
+        LOG.debug(f"Promtool add_measures output: {out}")
+
+        if "SUCCESS" not in out:
+            raise Exception(f"Promtool failed to push metrics: {out}")
+
+    def get_pods(self, labels={}, pod_state='Running'):
+        # pod_state as empty string can be used to get all pod states
+        if pod_state:
+            pod_state = f"--field-selector=status.phase={pod_state}"
+        if labels:
+            labels = f"-l {labels}"
+        oc_cmd = " ".join(self.oc_cmd)
+        pods_list = f"{oc_cmd} get pods -o=name {pod_state} {labels}"
+        cut_pod = "cut -d'/' -f 2"
+
+        pods_output = self.client.exec_cmd(
+            f"{pods_list} | {cut_pod}; true")
+
+        # output can be empty with len == 1
+        if len(pods_output) <= 1:
+            return []
+
+        return [pod.strip() for pod in pods_output.splitlines()]
+
+    def get_prometheus_pod(self):
+        labels = "app.kubernetes.io/name=prometheus"
+        LOG.debug("Getting prometheus service pod names.")
+        pods = self.get_pods(labels)
+
+        if not pods:
+            raise Exception("Could not find a prometheus service pod.")
+
+        LOG.debug(f"Prometheus service found. Running on pod {pods[0]}")
+        return pods[0]
