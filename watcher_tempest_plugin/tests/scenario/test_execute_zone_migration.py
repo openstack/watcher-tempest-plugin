@@ -55,12 +55,15 @@ class TestExecuteZoneMigrationStrategy(base.BaseInfraOptimScenarioTest):
     def test_execute_zone_migration_live_migration(self):
         """Execute an action plan using the zone migration strategy"""
         self.addCleanup(self.rollback_compute_nodes_status)
+        self.addCleanup(self.wait_delete_instances_from_model)
         instance = self.create_server(image_id=CONF.compute.image_ref,
                                       wait_until='ACTIVE',
                                       clients=self.os_primary)
         instance = self.mgr.servers_client.show_server(
             instance['id'])['server']
         node = instance.get('OS-EXT-SRV-ATTR:hypervisor_hostname')
+        # Wait for the instance to be added in compute model
+        self.wait_for_instances_in_model([instance])
 
         vacant_node = [hyp['hypervisor_hostname'] for hyp
                        in self.get_hypervisors_setup()

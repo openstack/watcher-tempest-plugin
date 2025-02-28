@@ -21,11 +21,13 @@ import subprocess
 
 import urllib.parse as urlparse
 
+from oslo_log import log
 from tempest import config
 from tempest.lib.common import rest_client
 from tempest.lib.common import ssh
 
 CONF = config.CONF
+LOG = log.getLogger(__name__)
 
 
 def handle_errors(f):
@@ -163,7 +165,7 @@ class BaseClient(rest_client.RestClient, metaclass=abc.ABCMeta):
 
         :param resource: The name of the REST resource, e.g., 'audits'.
         :param uuid: The unique identifier of an object in UUID format.
-        :return: A tuple with the server response and the response body.
+        :returns: A tuple with the server response and the response body.
         """
 
         uri = self._get_uri(resource, uuid)
@@ -177,7 +179,7 @@ class BaseClient(rest_client.RestClient, metaclass=abc.ABCMeta):
 
         :param resource: The name of the REST resource, e.g., 'audits'.
         :param uuid: The unique identifier of an object in UUID format.
-        :return: A tuple with the server response and the serialized patched
+        :returns: A tuple with the server response and the serialized patched
                  object.
         """
 
@@ -225,7 +227,6 @@ class BaseCmdClient(metaclass=abc.ABCMeta):
             or a sequence of arguments.
         :param input_data: data to be sent to process stdin
         :param timeout: communication timeout in seconds
-
         :return: output written to stdout.
         :raises: Exception when command fails.
         """
@@ -242,10 +243,10 @@ class SubProcessCmdClient(BaseCmdClient):
           or a sequence of arguments.
         :param input_data: data to be sent to process stdin
         :param timeout: communication timeout in seconds
-
         :return: output written to stdout.
         :raises: Exception when command fails.
         """
+        LOG.debug(f"Executing command '{cmd}' with input data '{input_data}'")
         sp = subprocess.Popen(cmd,
                               stdout=subprocess.PIPE,
                               stdin=subprocess.PIPE,
@@ -289,7 +290,7 @@ class SshCmdClient(BaseCmdClient, ssh.Client):
         :param input_data: data to be sent to process stdin
         :param timeout: communication timeout in seconds
 
-        :return: output written to stdout.
+        :returns: output written to stdout.
         :raises: Exception when command fails.
         """
         cmd_str = " ".join(cmd) if isinstance(cmd, list) else cmd
@@ -303,6 +304,8 @@ class SshCmdClient(BaseCmdClient, ssh.Client):
 
         if self.cmd_prefix:
             cmd_str = f"{self.cmd_prefix} {cmd_str}"
+
+        LOG.debug(f"Executing command '{cmd_str}' on host '{self.host}'")
 
         if timeout:
             original_timeout = self.timeout
