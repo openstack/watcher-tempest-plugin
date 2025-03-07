@@ -74,6 +74,7 @@ class TestExecuteVmWorkloadBalanceStrategy(base.BaseInfraOptimScenarioTest):
         instances = self._create_one_instance_per_host_with_statistic(metrics)
         # wait for compute model updates
         self.wait_for_instances_in_model(instances)
+        self.make_host_statistic()
 
         _, goal = self.client.show_goal(self.GOAL_NAME)
         _, strategy = self.client.show_strategy("vm_workload_consolidation")

@@ -62,7 +62,6 @@ class TestExecuteWorkloadBalancingStrategy(base.BaseInfraOptimScenarioTest):
         self.addCleanup(self.wait_delete_instances_from_model)
         instances = self._create_one_instance_per_host_with_statistic()
         self._pack_all_created_instances_on_one_host(instances)
-        self.make_host_statistic()
         # wait for compute model updates
         self.wait_for_instances_in_model(instances)
 

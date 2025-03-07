@@ -51,9 +51,9 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
         instances = self._create_one_instance_per_host_with_statistic()
-        self.make_host_statistic()
         # wait for compute model updates
         self.wait_for_instances_in_model(instances)
+        self.make_host_statistic()
 
         goal_name = "server_consolidation"
         strategy_name = "basic"
@@ -119,6 +119,7 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
         instances = self._create_one_instance_per_host_with_statistic(metrics)
         # wait for compute model updates
         self.wait_for_instances_in_model(instances)
+        self.make_host_statistic()
 
         goal_name = "server_consolidation"
         strategy_name = "vm_workload_consolidation"
@@ -135,7 +136,6 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
         self.addCleanup(self.wait_delete_instances_from_model)
         instances = self._create_one_instance_per_host_with_statistic()
         self._pack_all_created_instances_on_one_host(instances)
-        self.make_host_statistic()
         # wait for compute model updates
         self.wait_for_instances_in_model(instances)
 

@@ -538,7 +538,7 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
                     self.PROMETHEUS_METRIC_MAP['host_cpu_usage'],
                     labels=host_labels,
                     start_value=1.0,
-                    inc_factor=0.2)
+                    inc_factor=0.4)
 
                 self.prometheus_client.add_measures(data)
 
