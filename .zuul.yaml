@@ -7,7 +7,6 @@
       - release-notes-jobs-python3
     check:
       jobs:
-        - watcherclient-tempest-functional
         - watcher-tempest-functional
         - watcher-tempest-actuator
         - watcher-tempest-strategies
