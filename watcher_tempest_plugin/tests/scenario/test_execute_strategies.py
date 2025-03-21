@@ -73,7 +73,9 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
         strategy_name = "dummy"
         audit_kwargs = dict()
 
-        self.execute_strategy(goal_name, strategy_name, **audit_kwargs)
+        self.execute_strategy(goal_name, strategy_name,
+                              expected_actions=['sleep', 'nop'],
+                              **audit_kwargs)
 
     def test_execute_host_maintenance_strategy(self):
         self.addCleanup(self.rollback_compute_nodes_status)
