@@ -153,15 +153,17 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
         self.addCleanup(self.wait_delete_instances_from_model)
         instances = self._create_one_instance_per_host_with_statistic(
             inject=INJECT_METRICS)
-        self._pack_all_created_instances_on_one_host(instances)
+        used_host = self._pack_all_created_instances_on_one_host(instances)
+        loaded_hosts = [used_host]
         # wait for compute model updates
         self.wait_for_instances_in_model(instances)
+        self.make_host_statistic(loaded_hosts=loaded_hosts)
 
         audit_parameters = {
             "metrics": ["instance_cpu_usage"],
-            "thresholds": {"instance_cpu_usage": 0.2},
+            "thresholds": {"instance_cpu_usage": 0.1},
             "weights": {"instance_cpu_usage_weight": 1.0},
-            "periods": {"instance": 72000, "compute_node": 60000},
+            "periods": {"instance": 400, "compute_node": 300},
             "instance_metrics": {"instance_cpu_usage": "host_cpu_usage"},
             "granularity": 300,
             "aggregation_method": {"instance": "mean", "compute_node": "mean"}}
@@ -170,7 +172,8 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
         strategy_name = "workload_stabilization"
         audit_kwargs = {"parameters": audit_parameters}
 
-        self.execute_strategy(goal_name, strategy_name, **audit_kwargs)
+        self.execute_strategy(goal_name, strategy_name,
+                              expected_actions=['migrate'], **audit_kwargs)
 
     def test_execute_zone_migration_live_migration_strategy(self):
         # This test requires metrics injection
