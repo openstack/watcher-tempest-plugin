@@ -109,4 +109,10 @@ OptimizationGroup = [
         help="Namespace where OpenStack is deployed in a podified "
              "control plane environment."
     ),
+    cfg.IntOpt(
+        "real_workload_period",
+        default=120,
+        help="In real-data test cases, the period of time during which "
+             "the load will be executed in seconds."
+    ),
 ]

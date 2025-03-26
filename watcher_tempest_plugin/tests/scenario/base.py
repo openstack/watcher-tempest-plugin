@@ -16,9 +16,11 @@
 # limitations under the License.
 #
 
+import base64
 import functools
 import json
 import random
+import textwrap
 import time
 
 from datetime import datetime
@@ -222,13 +224,15 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
 
         self.assertEqual(target_host, server_host, msg)
 
-    def _create_one_instance_per_host_with_statistic(self, metrics=dict()):
+    def _create_one_instance_per_host_with_statistic(self, metrics=dict(),
+                                                     run_command=None):
         """Create 1 instance per compute node and make instance statistic
 
         This goes up to the min_compute_nodes threshold so that things don't
         get crazy if you have 1000 compute nodes but set min to 3.
 
         :param metrics: The metrics add to resource when using Gnocchi
+        :param run_command: the command you want to run in the new instances
         """
         compute_nodes = self.get_compute_nodes_setup()
         instances = self.mgr.servers_client.list_servers(
@@ -238,6 +242,7 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
 
         hypervisors = self.get_hypervisors_setup()
         created_instances = []
+
         for node in compute_nodes[:CONF.compute.min_compute_nodes]:
             hyp_id = [
                 hyp['id'] for hyp in hypervisors
@@ -258,11 +263,30 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
                 time.sleep(30)
                 retry -= 1
             self.assertNotEqual(0, retry)
+            # In case we want to run commands we will be injecting it via
+            # user_data which requires to setup the instance as validatable
+            # in tempest.common.compute.create_test_server
+            kwargs_server = {}
+            validatable = False
+            validation_resources = None
+            if run_command:
+                validation_resources = self.get_test_validation_resources(
+                    self.os_primary)
+                validatable = True
+                script = '''
+                         #!/bin/sh
+                         {run_command}
+                         '''.format(run_command=run_command)
+                script_clean = textwrap.dedent(script).lstrip().encode('utf8')
+                script_b64 = base64.b64encode(script_clean)
+                kwargs_server['user_data'] = script_b64
             # by getting to active state here, this means this has
             # landed on the host in question.
-            instance = self.create_server(image_id=CONF.compute.image_ref,
-                                          wait_until='ACTIVE',
-                                          clients=self.os_primary)
+            instance = self.create_server(
+                image_id=CONF.compute.image_ref, wait_until='ACTIVE',
+                clients=self.os_primary, validatable=validatable,
+                validation_resources=validation_resources,
+                **kwargs_server)
             # get instance object again as admin
             instance = self.mgr.servers_client.show_server(
                 instance['id'])['server']
