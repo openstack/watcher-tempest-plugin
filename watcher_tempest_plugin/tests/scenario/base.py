@@ -644,12 +644,15 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
                 return False
         return True
 
-    def execute_strategy(self, goal_name, strategy_name, **audit_kwargs):
+    def execute_strategy(self, goal_name, strategy_name,
+                         expected_actions=[], **audit_kwargs):
         """Execute an action plan based on the specific strategy
 
         - create an audit template with the specific strategy
         - run the audit to create an action plan
         - get the action plan
+        - Verify that all action types in the expected_actions
+          list are present in the action plan.
         - run the action plan
         - get results and make sure it succeeded
         """
@@ -696,6 +699,14 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
         action_plan = action_plans['action_plans'][0]
 
         _, action_plan = self.client.show_action_plan(action_plan['uuid'])
+        created_actions = self.client.list_actions(
+            action_plan_uuid=action_plan["uuid"])[1]['actions']
+
+        if expected_actions:
+            action_types = {a['action_type'] for a in created_actions}
+            if set(expected_actions) != action_types:
+                self.fail("The audit has found action types %s when expecting "
+                          "%s" % (action_types, expected_actions))
 
         if action_plan['state'] in ('SUPERSEDED', 'SUCCEEDED'):
             # This means the action plan is superseded so we cannot trigger it,
