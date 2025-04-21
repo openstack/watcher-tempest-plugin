@@ -19,6 +19,7 @@ import functools
 
 from oslo_utils import uuidutils
 from tempest.lib.common.utils import test_utils
+from tempest.lib import decorators
 
 from watcher_tempest_plugin.tests.client_functional.v1 import base
 
@@ -60,19 +61,23 @@ class AuditTests(base.TestCase):
         cls.watcher('audit delete %s' % cls.audit_uuid)
         cls.watcher('audittemplate delete %s' % cls.audit_template_name)
 
+    @decorators.idempotent_id('0b3a021c-93f2-4c6f-b758-959602006f8c')
     def test_audit_list(self):
         raw_output = self.watcher('audit list')
         self.assert_table_structure([raw_output], self.list_fields)
 
+    @decorators.idempotent_id('0a3af540-2214-44c9-921e-696fcab81b65')
     def test_audit_detailed_list(self):
         raw_output = self.watcher('audit list --detail')
         self.assert_table_structure([raw_output], self.detailed_list_fields)
 
+    @decorators.idempotent_id('78d41161-2fa9-4620-857e-9a325ad785fc')
     def test_audit_show(self):
         audit = self.watcher('audit show ' + self.audit_uuid)
         self.assertIn(self.audit_uuid, audit)
         self.assert_table_structure([audit], self.detailed_list_fields)
 
+    @decorators.idempotent_id('e3a1b6b8-f13f-4a81-9824-377279ebf488')
     def test_audit_update(self):
         audit_raw_output = self.watcher('audit update %s add interval=2'
                                         % self.audit_uuid)
@@ -89,15 +94,18 @@ class AuditTestsV11(AuditTests):
         'Created At', 'Updated At', 'Deleted At', 'Parameters', 'Interval',
         'Audit Scope', 'Next Run Time', 'Hostname', 'Start Time', 'End Time']
 
+    @decorators.idempotent_id('8ff17811-b066-4ed6-ada2-105c9c3d2691')
     def test_audit_detailed_list(self):
         raw_output = self.watcher('audit list --detail')
         self.assert_table_structure([raw_output], self.detailed_list_fields)
 
+    @decorators.idempotent_id('6937dc37-3931-4c20-a081-1cbfc45df623')
     def test_audit_show(self):
         audit = self.watcher('audit show ' + self.audit_uuid)
         self.assertIn(self.audit_uuid, audit)
         self.assert_table_structure([audit], self.detailed_list_fields)
 
+    @decorators.idempotent_id('b811da86-95ce-4654-afef-82aaeb72b6d4')
     def test_audit_update(self):
         local_time = datetime.now(tz.tzlocal())
         local_time_str = local_time.strftime("%Y-%m-%dT%H:%M:%S")
@@ -167,12 +175,14 @@ class AuditActiveTests(base.TestCase):
         self.watcher('actionplan delete %s' % action_plan_uuid)
         self.watcher('audit delete %s' % audit_uuid)
 
+    @decorators.idempotent_id('3fabb0e4-dd89-4fa0-9085-36e95074c4f1')
     def test_create_oneshot_audit(self):
         audit = self.watcher('audit create -a %s' % self.audit_template_name)
         audit_uuid = self.parse_show_as_object(audit)['UUID']
         self.assert_table_structure([audit], self.detailed_list_fields)
         self._delete_audit(audit_uuid)
 
+    @decorators.idempotent_id('981a7682-221f-4b8c-b5c6-33d50a6170f2')
     def test_delete_oneshot_audit(self):
         audit_uuid = self._create_audit()
         self.assertTrue(test_utils.call_until_true(
@@ -188,6 +198,7 @@ class AuditActiveTests(base.TestCase):
         action_plan_uuid = list(output[0])[0]
         self.watcher('actionplan delete %s' % action_plan_uuid)
 
+    @decorators.idempotent_id('4ad07aab-60c7-47cf-9e28-98a27ab3bca7')
     def test_continuous_audit(self):
         audit = self.watcher('audit create -a %s -t CONTINUOUS -i 600'
                              % self.audit_template_name)

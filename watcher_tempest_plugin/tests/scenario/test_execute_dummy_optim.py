@@ -19,6 +19,7 @@ import collections
 import functools
 
 from tempest.lib.common.utils import test_utils
+from tempest.lib import decorators
 
 from watcher_tempest_plugin.tests.scenario import base
 
@@ -26,6 +27,7 @@ from watcher_tempest_plugin.tests.scenario import base
 class TestExecuteDummyStrategy(base.BaseInfraOptimScenarioTest):
     """Tests for action plans"""
 
+    @decorators.idempotent_id('77884962-8739-422f-8471-6c9227e8481f')
     def test_execute_dummy_action_plan(self):
         """Execute an action plan based on the 'dummy' strategy
 

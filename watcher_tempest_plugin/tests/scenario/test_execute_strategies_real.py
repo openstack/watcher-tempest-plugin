@@ -62,6 +62,7 @@ class TestRealExecuteStrategies(base.BaseInfraOptimScenarioTest):
                 "skipping multinode tests.")
 
     @decorators.attr(type=['slow', 'real_load'])
+    @decorators.idempotent_id('95c7f20b-cd6e-4763-b1be-9a6ac7b5331c')
     def test_workload_stabilization_strategy(self):
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)

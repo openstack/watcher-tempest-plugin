@@ -18,6 +18,7 @@ from oslo_utils import uuidutils
 import functools
 
 from tempest.lib.common.utils import test_utils
+from tempest.lib import decorators
 
 from watcher_tempest_plugin.tests.client_functional.v1 import base
 
@@ -65,14 +66,17 @@ class ActionPlanTests(base.TestCase):
             'audittemplate delete %s' % cls.audit_template_name)
         cls.assertOutput('', raw_output)
 
+    @decorators.idempotent_id('81b64469-dfe1-499e-8d49-614970aea01e')
     def test_action_plan_list(self):
         raw_output = self.watcher('actionplan list')
         self.assert_table_structure([raw_output], self.list_fields)
 
+    @decorators.idempotent_id('af257105-17f4-4330-9904-80272b81de41')
     def test_action_plan_detailed_list(self):
         raw_output = self.watcher('actionplan list --detail')
         self.assert_table_structure([raw_output], self.detailed_list_fields)
 
+    @decorators.idempotent_id('f487078d-d001-4419-85e3-d68859c9a238')
     def test_action_plan_show(self):
         action_plan_list = self.parse_show(self.watcher('actionplan list'))
         action_plan_uuid = list(action_plan_list[0])[0]
@@ -81,6 +85,7 @@ class ActionPlanTests(base.TestCase):
         self.assert_table_structure([actionplan],
                                     self.detailed_list_fields)
 
+    @decorators.idempotent_id('629767a4-78fe-4abc-9321-6164e6c5e18d')
     def test_action_plan_start(self):
         output = self.parse_show(self.watcher('actionplan list --audit %s'
                                               % self.audit_uuid))

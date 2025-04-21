@@ -16,6 +16,7 @@ import functools
 from oslo_log import log
 from tempest import config
 from tempest.lib.common.utils import test_utils
+from tempest.lib import decorators
 
 from watcher_tempest_plugin.tests.scenario import base
 
@@ -52,6 +53,7 @@ class TestExecuteZoneMigrationStrategy(base.BaseInfraOptimScenarioTest):
                 "Less than 2 compute nodes are enabled, "
                 "skipping multinode tests.")
 
+    @decorators.idempotent_id('ebc05585-0b7c-4cb4-b9ee-43758780e70e')
     def test_execute_zone_migration_live_migration(self):
         """Execute an action plan using the zone migration strategy"""
         self.addCleanup(self.rollback_compute_nodes_status)

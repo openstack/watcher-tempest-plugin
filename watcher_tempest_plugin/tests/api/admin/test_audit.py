@@ -36,6 +36,7 @@ class TestCreateUpdateDeleteAudit(base.BaseInfraOptimTest):
             expected, actual, keys)
 
     @decorators.attr(type='smoke')
+    @decorators.idempotent_id('7e759ad3-17e8-4a8e-95cf-6532faf67667')
     def test_create_audit_oneshot(self):
         _, goal = self.client.show_goal("dummy")
         _, audit_template = self.create_audit_template(goal['uuid'])
@@ -56,6 +57,7 @@ class TestCreateUpdateDeleteAudit(base.BaseInfraOptimTest):
         self.assert_expected(audit, body)
 
     @decorators.attr(type='smoke')
+    @decorators.idempotent_id('3c9bf382-e43b-43d6-a310-f7387cfc2f58')
     def test_create_audit_continuous(self):
         _, goal = self.client.show_goal("dummy")
         _, audit_template = self.create_audit_template(goal['uuid'])
@@ -92,6 +94,7 @@ class TestCreateUpdateDeleteAudit(base.BaseInfraOptimTest):
         self.assertEqual(audit['state'], 'CANCELLED')
 
     @decorators.attr(type='smoke')
+    @decorators.idempotent_id('f26573d6-4020-4971-8868-495bffde982e')
     def test_create_audit_event(self):
         _, descr = self.client.get_api_description()
         if descr['versions']:
@@ -134,6 +137,7 @@ class TestCreateUpdateDeleteAudit(base.BaseInfraOptimTest):
         self.assertEqual(audit['state'], 'CANCELLED')
 
     @decorators.attr(type='smoke')
+    @decorators.idempotent_id('3e845716-8288-42b3-b95c-395ba7afbaf5')
     def test_create_audit_with_wrong_audit_template(self):
         audit_params = dict(
             audit_template_uuid='INVALID',
@@ -144,6 +148,7 @@ class TestCreateUpdateDeleteAudit(base.BaseInfraOptimTest):
             exceptions.BadRequest, self.create_audit, **audit_params)
 
     @decorators.attr(type='smoke')
+    @decorators.idempotent_id('1afb3b41-40a7-4000-9dc0-53b5e8eaa009')
     def test_create_audit_with_invalid_state(self):
         _, goal = self.client.show_goal("dummy")
         _, audit_template = self.create_audit_template(goal['uuid'])
@@ -157,6 +162,7 @@ class TestCreateUpdateDeleteAudit(base.BaseInfraOptimTest):
             exceptions.BadRequest, self.create_audit, **audit_params)
 
     @decorators.attr(type='smoke')
+    @decorators.idempotent_id('d6b6a3a0-0eed-474f-b3dc-14ed0d97c655')
     def test_create_audit_with_no_state(self):
         _, goal = self.client.show_goal("dummy")
         _, audit_template = self.create_audit_template(goal['uuid'])
@@ -179,6 +185,7 @@ class TestCreateUpdateDeleteAudit(base.BaseInfraOptimTest):
         self.assert_expected(audit, body)
 
     @decorators.attr(type='smoke')
+    @decorators.idempotent_id('d1520631-2dbb-4240-ba0a-14aa7f347003')
     def test_update_audit(self):
         _, goal = self.client.show_goal("dummy")
         _, audit_template = self.create_audit_template(goal['uuid'])
@@ -210,6 +217,7 @@ class TestCreateUpdateDeleteAudit(base.BaseInfraOptimTest):
         )
 
     @decorators.attr(type='smoke')
+    @decorators.idempotent_id('e06add3b-1a48-41c2-871e-5d0803a81a37')
     def test_delete_audit(self):
         _, goal = self.client.show_goal("dummy")
         _, audit_template = self.create_audit_template(goal['uuid'])
@@ -260,6 +268,7 @@ class TestShowListAudit(base.BaseInfraOptimTest):
             expected, actual, keys)
 
     @decorators.attr(type='smoke')
+    @decorators.idempotent_id('f1b31895-db1c-4a07-979c-dceb811bad98')
     def test_show_audit(self):
         _, audit = self.client.show_audit(
             self.audit['uuid'])
@@ -276,6 +285,7 @@ class TestShowListAudit(base.BaseInfraOptimTest):
         self.assert_expected(initial_audit, actual_audit)
 
     @decorators.attr(type='smoke')
+    @decorators.idempotent_id('4f5ced80-3082-43f5-8394-1cba1160d893')
     def test_show_audit_with_links(self):
         _, audit = self.client.show_audit(
             self.audit['uuid'])
@@ -285,6 +295,7 @@ class TestShowListAudit(base.BaseInfraOptimTest):
                       audit['links'][0]['href'])
 
     @decorators.attr(type="smoke")
+    @decorators.idempotent_id('14e720d7-ffb3-4c5f-8a5b-2510b31198e8')
     def test_list_audits(self):
         _, body = self.client.list_audits()
         self.assertIn(self.audit['uuid'],
@@ -295,6 +306,7 @@ class TestShowListAudit(base.BaseInfraOptimTest):
                                     audit['links'][0]['href'])
 
     @decorators.attr(type='smoke')
+    @decorators.idempotent_id('5175607c-f2df-4df6-9168-45c789b4a6ea')
     def test_list_with_limit(self):
         # We create 3 extra audits to exceed the limit we fix
         for _ in range(3):
@@ -307,6 +319,7 @@ class TestShowListAudit(base.BaseInfraOptimTest):
         self.assertIn(next_marker, body['next'])
 
     @decorators.attr(type='smoke')
+    @decorators.idempotent_id('beb25611-24a8-44e2-a381-923053fb282f')
     def test_list_audits_related_to_given_audit_template(self):
         _, body = self.client.list_audits(
             goal=self.goal['uuid'])

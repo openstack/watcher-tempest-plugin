@@ -27,6 +27,7 @@ class TestCreateDeleteExecuteActionPlan(base.BaseInfraOptimTest):
     """Tests for action plans"""
 
     @decorators.attr(type='smoke')
+    @decorators.idempotent_id('3ac90a92-1022-4868-b93d-ede7ef7b5041')
     def test_create_action_plan(self):
         _, goal = self.client.show_goal("dummy")
         _, audit_template = self.create_audit_template(goal['uuid'])
@@ -47,6 +48,7 @@ class TestCreateDeleteExecuteActionPlan(base.BaseInfraOptimTest):
         self.assertEqual('RECOMMENDED', action_plan['state'])
 
     @decorators.attr(type='smoke')
+    @decorators.idempotent_id('621878a9-0a0b-4cf7-952f-6fd5a0cd613e')
     def test_execute_action_plan(self):
         _, goal = self.client.show_goal("dummy")
         _, audit_template = self.create_audit_template(goal['uuid'])
@@ -70,6 +72,7 @@ class TestCreateDeleteExecuteActionPlan(base.BaseInfraOptimTest):
         self.assertEqual('SUCCEEDED', action_plan['state'])
 
     @decorators.attr(type='smoke')
+    @decorators.idempotent_id('67dbb485-5bcb-41d6-b19b-adc8e581eec8')
     def test_delete_action_plan(self):
         _, goal = self.client.show_goal("dummy")
         _, audit_template = self.create_audit_template(goal['uuid'])
@@ -113,6 +116,7 @@ class TestShowListActionPlan(base.BaseInfraOptimTest):
             cls.action_plan = action_plans['action_plans'][0]
 
     @decorators.attr(type='smoke')
+    @decorators.idempotent_id('33465228-aac1-4688-9db3-6b1532c84323')
     def test_show_action_plan(self):
         _, action_plan = self.client.show_action_plan(
             self.action_plan['uuid'])
@@ -120,6 +124,7 @@ class TestShowListActionPlan(base.BaseInfraOptimTest):
         self.assert_expected(self.action_plan, action_plan)
 
     @decorators.attr(type='smoke')
+    @decorators.idempotent_id('fec6938c-215e-41a1-a63b-65000051acdd')
     def test_show_action_plan_detail(self):
         _, action_plans = self.client.list_action_plans_detail(
             audit_uuid=self.audit['uuid'])
@@ -129,6 +134,7 @@ class TestShowListActionPlan(base.BaseInfraOptimTest):
         self.assert_expected(self.action_plan, action_plan)
 
     @decorators.attr(type='smoke')
+    @decorators.idempotent_id('edf017b4-5685-466d-825d-751ba624e36e')
     def test_show_action_plan_with_links(self):
         _, action_plan = self.client.show_action_plan(
             self.action_plan['uuid'])
@@ -138,6 +144,7 @@ class TestShowListActionPlan(base.BaseInfraOptimTest):
                       action_plan['links'][0]['href'])
 
     @decorators.attr(type="smoke")
+    @decorators.idempotent_id('1978e51a-9af2-4d80-a2ba-46caf7fa6f04')
     def test_list_action_plans(self):
         _, body = self.client.list_action_plans()
         self.assertIn(self.action_plan['uuid'],
@@ -148,6 +155,7 @@ class TestShowListActionPlan(base.BaseInfraOptimTest):
                                     action_plan['links'][0]['href'])
 
     @decorators.attr(type='smoke')
+    @decorators.idempotent_id('50e227a7-b173-40fb-8957-82989dba8bca')
     def test_list_with_limit(self):
         # We create 3 extra audits to exceed the limit we fix
         for _ in range(3):
