@@ -107,6 +107,38 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
 
         self.execute_strategy(goal_name, strategy_name, **audit_kwargs)
 
+    @decorators.idempotent_id('cc5a0f1b-e8d2-4813-b012-874982d15d06')
+    def test_execute_host_maintenance_strategy_backup_node(self):
+        # This test does not require metrics injection
+        INJECT_METRICS = False
+
+        self.addCleanup(self.rollback_compute_nodes_status)
+        self.addCleanup(self.wait_delete_instances_from_model)
+        instances = self._create_one_instance_per_host_with_statistic(
+            inject=INJECT_METRICS)
+        hostname = instances[0].get('OS-EXT-SRV-ATTR:hypervisor_hostname')
+        # wait for compute model updates
+        self.wait_for_instances_in_model(instances)
+
+        backup_node = [hyp['hypervisor_hostname'] for hyp
+                       in self.get_hypervisors_setup()
+                       if hyp['state'] == 'up'
+                       and hyp['hypervisor_hostname'] != hostname][0]
+
+        goal_name = "cluster_maintaining"
+        strategy_name = "host_maintenance"
+        audit_kwargs = {
+            "parameters": {
+                "maintenance_node": hostname,
+                "backup_node": backup_node
+            }
+        }
+
+        self.execute_strategy(goal_name, strategy_name,
+                              expected_actions=['change_nova_service_state',
+                                                'migrate'],
+                              **audit_kwargs)
+
     @decorators.idempotent_id('7e3a9195-acc5-40cf-96da-a0a2883294d3')
     def test_execute_storage_capacity_balance_strategy(self):
         self.addCleanup(self.rollback_compute_nodes_status)
