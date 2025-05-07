@@ -20,6 +20,7 @@ import functools
 
 from tempest import config
 from tempest.lib.common.utils import test_utils
+from tempest.lib import decorators
 
 from watcher_tempest_plugin.tests.scenario import base
 
@@ -200,6 +201,7 @@ class TestExecuteActionsViaActuator(base.BaseInfraOptimScenarioTest):
 
         self.assertEqual(expected_action_counter, action_counter)
 
+    @decorators.idempotent_id('0af1a181-38c8-4416-8e85-8ebca8ac1cf8')
     def test_execute_scenarios(self):
         self.addCleanup(self.rollback_compute_nodes_status)
 

@@ -19,6 +19,7 @@ import functools
 
 from tempest import config
 from tempest.lib.common.utils import test_utils
+from tempest.lib import decorators
 
 from watcher_tempest_plugin.tests.scenario import base
 
@@ -54,6 +55,7 @@ class TestExecuteVmWorkloadBalanceStrategy(base.BaseInfraOptimScenarioTest):
                 "Less than 2 compute nodes are enabled, "
                 "skipping multinode tests.")
 
+    @decorators.idempotent_id('4b1830f6-846a-497f-b44c-636c2cac0df8')
     def test_execute_vm_workload_consolidation_action_plan(self):
         """Execute an action plan of vm_workload_consolidation strategy
 

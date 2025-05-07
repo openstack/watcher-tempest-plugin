@@ -19,6 +19,7 @@ import functools
 
 from tempest import config
 from tempest.lib.common.utils import test_utils
+from tempest.lib import decorators
 
 from watcher_tempest_plugin.tests.scenario import base
 
@@ -54,6 +55,7 @@ class TestExecuteBasicStrategy(base.BaseInfraOptimScenarioTest):
                 "Less than 2 compute nodes are enabled, "
                 "skipping multinode tests.")
 
+    @decorators.idempotent_id('e6fd7f87-abef-4ef3-8b52-134e22aac2ee')
     def test_execute_basic_action_plan(self):
         """Execute an action plan based on the BASIC strategy
 

@@ -43,6 +43,7 @@ class TestShowListAction(base.BaseInfraOptimTest):
         cls.action_plan = action_plans['action_plans'][0]
 
     @decorators.attr(type='smoke')
+    @decorators.idempotent_id('0390c465-df10-460f-9924-ff3d14779395')
     def test_show_one_action(self):
         _, body = self.client.list_actions(
             action_plan_uuid=self.action_plan["uuid"])
@@ -54,6 +55,7 @@ class TestShowListAction(base.BaseInfraOptimTest):
         self.assertEqual("PENDING", action['state'])
 
     @decorators.attr(type='smoke')
+    @decorators.idempotent_id('a5dd767a-6d4f-4d72-bd58-9ce69a6c327d')
     def test_show_action_with_links(self):
         _, body = self.client.list_actions(
             action_plan_uuid=self.action_plan["uuid"])
@@ -66,6 +68,7 @@ class TestShowListAction(base.BaseInfraOptimTest):
         self.assertIn(action['uuid'], action['links'][0]['href'])
 
     @decorators.attr(type="smoke")
+    @decorators.idempotent_id('530a308a-f590-4af7-832d-1714ee3e4d59')
     def test_list_actions(self):
         _, body = self.client.list_actions()
 
@@ -75,6 +78,7 @@ class TestShowListAction(base.BaseInfraOptimTest):
                                     action['links'][0]['href'])
 
     @decorators.attr(type="smoke")
+    @decorators.idempotent_id('570ef821-af69-473d-989d-bbe86b585a78')
     def test_list_actions_by_action_plan(self):
         _, body = self.client.list_actions(
             action_plan_uuid=self.action_plan["uuid"])
@@ -92,6 +96,7 @@ class TestShowListAction(base.BaseInfraOptimTest):
         self.assertEqual(1, action_counter.get("sleep"))
 
     @decorators.attr(type="smoke")
+    @decorators.idempotent_id('5aa8ff0c-aa8c-4488-a246-4e0c98180a69')
     def test_list_actions_by_audit(self):
         _, body = self.client.list_actions(audit_uuid=self.audit["uuid"])
 

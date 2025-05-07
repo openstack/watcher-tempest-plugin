@@ -19,6 +19,7 @@ import functools
 from oslo_log import log
 from tempest import config
 from tempest.lib.common.utils import test_utils
+from tempest.lib import decorators
 
 from watcher_tempest_plugin.tests.scenario import base
 
@@ -46,6 +47,7 @@ class TestExecuteStorageCapacityBalanceStrategy(
             raise cls.skipException("Requires at least two different "
                                     "backend names")
 
+    @decorators.idempotent_id('08d96b1f-6186-4e45-8d3d-61e20b700150')
     def test_execute_storage_capacity_balance(self):
         """Execute the storage capacity balance strategy"""
         self.create_volume(imageRef=CONF.compute.image_ref, size=3)

@@ -34,6 +34,7 @@ class TestShowListStrategy(base.BaseInfraOptimTest):
             expected, actual, keys)
 
     @decorators.attr(type='smoke')
+    @decorators.idempotent_id('569b6bc9-4dd9-43ae-be8a-fa9fff5b3e8f')
     def test_show_strategy(self):
         _, strategy = self.client.show_strategy(self.DUMMY_STRATEGY)
 
@@ -41,6 +42,7 @@ class TestShowListStrategy(base.BaseInfraOptimTest):
         self.assertIn("display_name", strategy.keys())
 
     @decorators.attr(type='smoke')
+    @decorators.idempotent_id('401fe965-c35f-4d0d-8aa2-b7af815fe31a')
     def test_show_strategy_with_links(self):
         _, strategy = self.client.show_strategy(self.DUMMY_STRATEGY)
         self.assertIn('links', strategy.keys())
@@ -49,6 +51,7 @@ class TestShowListStrategy(base.BaseInfraOptimTest):
                       strategy['links'][0]['href'])
 
     @decorators.attr(type="smoke")
+    @decorators.idempotent_id('cf308bd5-af8d-4112-9962-1d01851c30fd')
     def test_list_strategies(self):
         _, body = self.client.list_strategies()
         self.assertIn('strategies', body)

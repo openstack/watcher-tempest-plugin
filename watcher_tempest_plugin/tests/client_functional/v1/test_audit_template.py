@@ -14,6 +14,7 @@
 # limitations under the License.
 
 from oslo_utils import uuidutils
+from tempest.lib import decorators
 
 from watcher_tempest_plugin.tests.client_functional.v1 import base
 
@@ -37,14 +38,17 @@ class AuditTemplateTests(base.TestCase):
     def tearDownClass(cls):
         cls.watcher('audittemplate delete %s' % cls.audit_template_name)
 
+    @decorators.idempotent_id('b5065a27-9757-4d65-8e9c-9c6f3677eb10')
     def test_audit_template_list(self):
         raw_output = self.watcher('audittemplate list')
         self.assert_table_structure([raw_output], self.list_fields)
 
+    @decorators.idempotent_id('a26146b4-86fd-42ff-8af5-23567a8570e5')
     def test_audit_template_detailed_list(self):
         raw_output = self.watcher('audittemplate list --detail')
         self.assert_table_structure([raw_output], self.detailed_list_fields)
 
+    @decorators.idempotent_id('fa8a1e4b-e5b5-4643-b298-99f80e909dc3')
     def test_audit_template_show(self):
         audit_template = self.watcher(
             'audittemplate show %s' % self.audit_template_name)
@@ -52,6 +56,7 @@ class AuditTemplateTests(base.TestCase):
         self.assert_table_structure([audit_template],
                                     self.detailed_list_fields)
 
+    @decorators.idempotent_id('b632e1f5-4ab6-4338-91b3-abf4d257fa28')
     def test_audit_template_update(self):
         raw_output = self.watcher('audittemplate update %s replace '
                                   'description="Updated Desc"'
@@ -75,6 +80,7 @@ class AuditTemplateActiveTests(base.TestCase):
     def _delete_audit_template(self):
         self.watcher('audittemplate delete %s' % self.audit_template_name)
 
+    @decorators.idempotent_id('8c88f312-0e27-44c5-bd9b-c171086bfc55')
     def test_create_audit_template(self):
         raw_output = self.watcher('audittemplate create %s dummy '
                                   '-s dummy -d "Test Audit Template"'
@@ -82,6 +88,7 @@ class AuditTemplateActiveTests(base.TestCase):
         self.assert_table_structure([raw_output], self.detailed_list_fields)
         self._delete_audit_template()
 
+    @decorators.idempotent_id('c1980ccc-8194-4b18-bcdc-964395de3cf9')
     def test_delete_audit_template(self):
         self._create_audit_template()
         raw_output = self.watcher('audittemplate delete %s'

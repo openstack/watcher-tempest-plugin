@@ -34,6 +34,7 @@ class TestShowListGoal(base.BaseInfraOptimTest):
             expected, actual, keys)
 
     @decorators.attr(type='smoke')
+    @decorators.idempotent_id('1962c7cf-eb84-468a-8386-53166f4b2c9f')
     def test_show_goal(self):
         _, goal = self.client.show_goal(self.DUMMY_GOAL)
 
@@ -45,6 +46,7 @@ class TestShowListGoal(base.BaseInfraOptimTest):
         self.assertEqual(expected_fields, set(goal.keys()))
 
     @decorators.attr(type='smoke')
+    @decorators.idempotent_id('a2a9b467-0ba3-4902-9f93-c4d6a43bea94')
     def test_show_goal_with_links(self):
         _, goal = self.client.show_goal(self.DUMMY_GOAL)
         self.assertIn('links', goal.keys())
@@ -53,6 +55,7 @@ class TestShowListGoal(base.BaseInfraOptimTest):
                       goal['links'][0]['href'])
 
     @decorators.attr(type="smoke")
+    @decorators.idempotent_id('99dca2f7-091b-4de5-b455-0b15786fabca')
     def test_list_goals(self):
         _, body = self.client.list_goals()
         self.assertIn(self.DUMMY_GOAL,

@@ -19,6 +19,7 @@ import functools
 from oslo_log import log
 from tempest import config
 from tempest.lib.common.utils import test_utils
+from tempest.lib import decorators
 
 from watcher_tempest_plugin.tests.scenario import base
 
@@ -55,6 +56,7 @@ class TestExecuteHostMaintenanceStrategy(base.BaseInfraOptimScenarioTest):
                 "Less than 2 compute nodes are enabled, "
                 "skipping multinode tests.")
 
+    @decorators.idempotent_id('a9b4abb1-c8fc-410c-86b5-96a7c4150104')
     def test_execute_host_maintenance(self):
         """Execute an action plan using the host_maintenance strategy"""
         # This test does not require metrics injection

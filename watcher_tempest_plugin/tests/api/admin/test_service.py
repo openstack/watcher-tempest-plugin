@@ -35,6 +35,7 @@ class TestShowListService(base.BaseInfraOptimTest):
             expected, actual, keys)
 
     @decorators.attr(type='smoke')
+    @decorators.idempotent_id('ca1b9164-a5e1-475e-a869-006428a21ade')
     def test_show_service(self):
         _, body = self.client.list_services()
         self.assertIn('services', body)
@@ -53,6 +54,7 @@ class TestShowListService(base.BaseInfraOptimTest):
         self.assertIn("status", service.keys())
 
     @decorators.attr(type='smoke')
+    @decorators.idempotent_id('ebaa53f4-c988-4ac7-9271-1f46ea72d1c9')
     def test_show_service_with_links(self):
         _, body = self.client.list_services()
         self.assertIn('services', body)
@@ -71,6 +73,7 @@ class TestShowListService(base.BaseInfraOptimTest):
                       service['links'][0]['href'])
 
     @decorators.attr(type="smoke")
+    @decorators.idempotent_id('86062518-4a20-4df3-82bb-b06bfe61917a')
     def test_list_services(self):
         _, body = self.client.list_services()
         self.assertIn('services', body)

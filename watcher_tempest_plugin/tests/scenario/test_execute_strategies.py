@@ -16,6 +16,7 @@
 # limitations under the License.
 
 from tempest import config
+from tempest.lib import decorators
 
 from watcher_tempest_plugin.tests.scenario import base
 
@@ -47,6 +48,7 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
                 "Less than 2 compute nodes are enabled, "
                 "skipping multinode tests.")
 
+    @decorators.idempotent_id('62766a61-dfc4-478c-b80b-86d871227e67')
     def test_execute_basic_strategy(self):
         # This test does not require metrics injection
         INJECT_METRICS = False
@@ -72,6 +74,7 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
 
         self.execute_strategy(goal_name, strategy_name, **audit_kwargs)
 
+    @decorators.idempotent_id('a660e484-da76-478c-b18c-2eff243dde48')
     def test_execute_dummy_strategy(self):
         goal_name = "dummy"
         strategy_name = "dummy"
@@ -81,6 +84,7 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
                               expected_actions=['sleep', 'nop'],
                               **audit_kwargs)
 
+    @decorators.idempotent_id('17afd352-1929-46dd-a10a-63c90bb9255d')
     def test_execute_host_maintenance_strategy(self):
         # This test does not require metrics injection
         INJECT_METRICS = False
@@ -103,6 +107,7 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
 
         self.execute_strategy(goal_name, strategy_name, **audit_kwargs)
 
+    @decorators.idempotent_id('7e3a9195-acc5-40cf-96da-a0a2883294d3')
     def test_execute_storage_capacity_balance_strategy(self):
         self.addCleanup(self.rollback_compute_nodes_status)
         self.create_volume(imageRef=CONF.compute.image_ref, size=3)
@@ -117,6 +122,7 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
 
         self.execute_strategy(goal_name, strategy_name, **audit_kwargs)
 
+    @decorators.idempotent_id('9f3ee978-e033-4c1e-bbf2-9e5a5cb8a365')
     def test_execute_vm_workload_consolidation_strategy(self):
         # This test requires metrics injection
         INJECT_METRICS = True
@@ -145,6 +151,7 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
 
         self.execute_strategy(goal_name, strategy_name, **audit_kwargs)
 
+    @decorators.idempotent_id('14360d59-4923-49f7-bfe5-31d6a819b6f7')
     def test_execute_workload_stabilization_strategy(self):
         # This test requires metrics injection
         INJECT_METRICS = True
@@ -175,6 +182,7 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
         self.execute_strategy(goal_name, strategy_name,
                               expected_actions=['migrate'], **audit_kwargs)
 
+    @decorators.idempotent_id('2119b69f-1cbd-4874-a82e-fceec093ebbb')
     def test_execute_zone_migration_live_migration_strategy(self):
         # This test requires metrics injection
         INJECT_METRICS = True
@@ -202,6 +210,7 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
 
         self.execute_strategy(goal_name, strategy_name, **audit_kwargs)
 
+    @decorators.idempotent_id('c0c061e9-4713-4a23-a6e1-5db794add685')
     def test_execute_node_resource_consolidation_strategy_with_auto(self):
         # This test does not require metrics injection
         INJECT_METRICS = False
@@ -223,6 +232,7 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
 
         self.execute_strategy(goal_name, strategy_name, **audit_kwargs)
 
+    @decorators.idempotent_id('12312f2b-ff7a-4722-9aa3-0262608e1ef0')
     def test_execute_node_resource_consolidation_strategy_with_specify(self):
         # This test does not require metrics injection
         INJECT_METRICS = False

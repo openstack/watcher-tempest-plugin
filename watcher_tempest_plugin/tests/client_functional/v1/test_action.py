@@ -18,6 +18,7 @@ from oslo_utils import uuidutils
 import functools
 
 from tempest.lib.common.utils import test_utils
+from tempest.lib import decorators
 
 from watcher_tempest_plugin.tests.client_functional.v1 import base
 
@@ -63,14 +64,17 @@ class ActionTests(base.TestCase):
             'audittemplate delete %s' % cls.audit_template_name)
         cls.assertOutput('', raw_output)
 
+    @decorators.idempotent_id('8f0fde28-eb6f-4beb-b7ad-896d76d09a15')
     def test_action_list(self):
         raw_output = self.watcher('action list')
         self.assert_table_structure([raw_output], self.list_fields)
 
+    @decorators.idempotent_id('dbcc709f-b3b4-4803-9a19-73d77058a6d0')
     def test_action_detailed_list(self):
         raw_output = self.watcher('action list --detail')
         self.assert_table_structure([raw_output], self.detailed_list_fields)
 
+    @decorators.idempotent_id('03c83cdb-41fd-4893-a056-fd94403827b2')
     def test_action_show(self):
         action_list = self.parse_show(self.watcher('action list --audit %s'
                                       % self.audit_uuid))

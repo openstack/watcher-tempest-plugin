@@ -20,6 +20,7 @@ import functools
 from oslo_log import log
 from tempest import config
 from tempest.lib.common.utils import test_utils
+from tempest.lib import decorators
 
 from watcher_tempest_plugin.tests.scenario import base
 
@@ -56,6 +57,7 @@ class TestExecuteWorkloadBalancingStrategy(base.BaseInfraOptimScenarioTest):
                 "Less than 2 compute nodes are enabled, "
                 "skipping multinode tests.")
 
+    @decorators.idempotent_id('3bb80932-9caa-4c30-8dfd-7d6f429d8784')
     def test_execute_workload_stabilization(self):
 
         # This test requires metrics injection

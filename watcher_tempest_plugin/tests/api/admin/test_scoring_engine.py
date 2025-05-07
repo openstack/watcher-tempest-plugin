@@ -33,6 +33,7 @@ class TestShowListScoringEngine(base.BaseInfraOptimTest):
             expected, actual, keys)
 
     @decorators.attr(type='smoke')
+    @decorators.idempotent_id('5b408f9f-c50f-4084-9f8e-132c29e82b4d')
     def test_show_scoring_engine(self):
         _, scoring_engine = self.client.show_scoring_engine(
             self.DUMMY_SCORING_ENGINE)
@@ -43,6 +44,7 @@ class TestShowListScoringEngine(base.BaseInfraOptimTest):
         self.assertEqual(expected_fields, set(scoring_engine.keys()))
 
     @decorators.attr(type='smoke')
+    @decorators.idempotent_id('62b3c437-84f6-48d2-8888-82fe5d352242')
     def test_show_scoring_engine_with_links(self):
         _, scoring_engine = self.client.show_scoring_engine(
             self.DUMMY_SCORING_ENGINE)
@@ -52,6 +54,7 @@ class TestShowListScoringEngine(base.BaseInfraOptimTest):
                       scoring_engine['links'][0]['href'])
 
     @decorators.attr(type="smoke")
+    @decorators.idempotent_id('c9abdd42-82f6-455d-8f15-2a5da11b8067')
     def test_list_scoring_engines(self):
         _, body = self.client.list_scoring_engines()
         self.assertIn(self.DUMMY_SCORING_ENGINE,
