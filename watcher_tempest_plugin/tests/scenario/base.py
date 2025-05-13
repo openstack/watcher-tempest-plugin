@@ -128,6 +128,27 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
                 if srv.get('binary') == 'nova-compute']
 
     @classmethod
+    def get_host_other_than(cls, server_id):
+        source_host = cls.get_host_for_server(server_id)
+
+        svcs = cls.os_admin.services_client.list_services(
+            binary='nova-compute')['services']
+        hosts = []
+        for svc in svcs:
+            if CONF.compute.target_hosts_to_avoid in svc['host']:
+                continue
+            if svc['state'] == 'up' and svc['status'] == 'enabled':
+                if CONF.compute.compute_volume_common_az:
+                    if svc['zone'] == CONF.compute.compute_volume_common_az:
+                        hosts.append(svc['host'])
+                else:
+                    hosts.append(svc['host'])
+
+        for target_host in hosts:
+            if source_host != target_host:
+                return target_host
+
+    @classmethod
     def wait_for_compute_node_setup(cls):
 
         def _are_compute_nodes_setup():
@@ -306,7 +327,7 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
             if hyp['state'] == 'up']
         node = hypervisors[0]
         for instance in instances:
-            if instance.get('OS-EXT-SRV-ATTR:hypervisor_hostname') != node:
+            if self.get_host_for_server(instance['id']) != node:
                 self._live_migrate(instance['id'], node, 'ACTIVE')
         return node
 
@@ -506,7 +527,7 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
         resource_params = {
             'type': 'instance',
             'metrics': metrics,
-            'host': instance.get('OS-EXT-SRV-ATTR:hypervisor_hostname'),
+            'host': self.get_host_for_server(instance['id']),
             'display_name': instance.get('OS-EXT-SRV-ATTR:instance_name'),
             'image_ref': instance['image']['id'],
             'flavor_id': flavor[0]['id'],

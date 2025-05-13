@@ -93,7 +93,7 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
         self.addCleanup(self.wait_delete_instances_from_model)
         instances = self._create_one_instance_per_host_with_statistic(
             inject=INJECT_METRICS)
-        hostname = instances[0].get('OS-EXT-SRV-ATTR:hypervisor_hostname')
+        host = self.get_host_for_server(instances[0]['id'])
         # wait for compute model updates
         self.wait_for_instances_in_model(instances)
 
@@ -101,7 +101,7 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
         strategy_name = "host_maintenance"
         audit_kwargs = {
             "parameters": {
-                "maintenance_node": hostname
+                "maintenance_node": host
             }
         }
 
@@ -116,20 +116,17 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
         self.addCleanup(self.wait_delete_instances_from_model)
         instances = self._create_one_instance_per_host_with_statistic(
             inject=INJECT_METRICS)
-        hostname = instances[0].get('OS-EXT-SRV-ATTR:hypervisor_hostname')
+        host = self.get_host_for_server(instances[0]['id'])
         # wait for compute model updates
         self.wait_for_instances_in_model(instances)
 
-        backup_node = [hyp['hypervisor_hostname'] for hyp
-                       in self.get_hypervisors_setup()
-                       if hyp['state'] == 'up'
-                       and hyp['hypervisor_hostname'] != hostname][0]
+        backup_node = self.get_host_other_than(instances[0]['id'])
 
         goal_name = "cluster_maintaining"
         strategy_name = "host_maintenance"
         audit_kwargs = {
             "parameters": {
-                "maintenance_node": hostname,
+                "maintenance_node": host,
                 "backup_node": backup_node
             }
         }
@@ -138,6 +135,11 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
                               expected_actions=['change_nova_service_state',
                                                 'migrate'],
                               **audit_kwargs)
+
+        # Make sure servers are migrated to backup node
+        for server in instances:
+            self.assertEqual(self.get_host_for_server(server['id']),
+                             backup_node)
 
     @decorators.idempotent_id('7e3a9195-acc5-40cf-96da-a0a2883294d3')
     def test_execute_storage_capacity_balance_strategy(self):
@@ -223,14 +225,11 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
         self.addCleanup(self.wait_delete_instances_from_model)
         instances = self._create_one_instance_per_host_with_statistic(
             inject=INJECT_METRICS)
-        node = instances[0].get('OS-EXT-SRV-ATTR:hypervisor_hostname')
+        node = self.get_host_for_server(instances[0]['id'])
         # wait for compute model updates
         self.wait_for_instances_in_model(instances)
 
-        vacant_node = [hyp['hypervisor_hostname'] for hyp
-                       in self.get_hypervisors_setup()
-                       if hyp['state'] == 'up'
-                       and hyp['hypervisor_hostname'] != node][0]
+        vacant_node = self.get_host_other_than(instances[0]['id'])
 
         audit_parameters = {
             "compute_nodes": [{"src_node": node, "dst_node": vacant_node}],

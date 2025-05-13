@@ -67,8 +67,8 @@ class TestExecuteHostMaintenanceStrategy(base.BaseInfraOptimScenarioTest):
         instances = self._create_one_instance_per_host_with_statistic(
             inject=INJECT_METRICS
         )
-        hostname = instances[0].get('OS-EXT-SRV-ATTR:hypervisor_hostname')
-        audit_parameters = {"maintenance_node": hostname}
+        host = self.get_host_for_server(instances[0]['id'])
+        audit_parameters = {"maintenance_node": host}
         # wait for compute model updates
         self.wait_for_instances_in_model(instances)
 
