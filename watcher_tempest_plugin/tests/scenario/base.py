@@ -25,6 +25,7 @@ import time
 
 from datetime import datetime
 from datetime import timedelta
+from datetime import timezone
 import os_traits
 from oslo_log import log
 from tempest.common import waiters
@@ -340,26 +341,41 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
 
     def _make_measures_host(self, measures_count, time_step, min=10, max=20):
         measures_body = []
+        now = datetime.now(timezone.utc)
         for i in range(1, measures_count + 1):
-            dt = datetime.utcnow() - timedelta(minutes=i * time_step)
+            dt = now - timedelta(minutes=i * time_step)
             measures_body.append(
-                dict(value=random.randint(min, max),
+                dict(value=random.randint(int(min), int(max)),
                      timestamp=dt.replace(microsecond=0).isoformat())
             )
         return measures_body
 
     def _make_measures_instance(self, measures_count, time_step,
-                                min=80, max=90):
+                                min=80, max=90, metric_type='cpu'):
         measures_body = []
-        final_cpu = (measures_count + 1) * 60 * time_step * 1e9
-        for i in range(1, measures_count + 1):
-            dt = datetime.utcnow() - timedelta(minutes=i * time_step)
-            cpu = final_cpu - ((i - 1) * 60 * time_step * 1e9
-                               * random.randint(min, max) / 100)
-            measures_body.append(
-                dict(value=cpu,
-                     timestamp=dt.replace(microsecond=0).isoformat())
-            )
+        now = datetime.now(timezone.utc)
+
+        if metric_type == "cpu":
+            final_cpu = (measures_count + 1) * 60 * time_step * 1e9
+            for i in range(1, measures_count + 1):
+                dt = now - timedelta(minutes=i * time_step)
+                cpu = final_cpu - ((i - 1) * 60 * time_step * 1e9
+                                   * random.randint(int(min), int(max)) / 100)
+                measures_body.append(
+                    dict(value=cpu,
+                         timestamp=dt.replace(microsecond=0).isoformat())
+                )
+        elif metric_type == "ram":
+            for i in range(1, measures_count + 1):
+                dt = now - timedelta(minutes=i * time_step)
+                ram = random.randint(int(min), int(max))
+                measures_body.append(
+                    dict(value=ram,
+                         timestamp=dt.replace(microsecond=0).isoformat())
+                )
+        else:
+            raise ValueError(f"Unsupported metric_type: {metric_type}")
+
         return measures_body
 
     def make_host_statistic(self, metrics=dict(), loaded_hosts=[]):
@@ -392,6 +408,9 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
             metrics = {
                 self.GNOCCHI_METRIC_MAP['host_cpu_usage']: {
                     'archive_policy_name': 'low'
+                },
+                self.GNOCCHI_METRIC_MAP['host_ram_usage']: {
+                    'archive_policy_name': 'low'
                 }
             }
         else:
@@ -410,15 +429,32 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
                 'id': host_name
             }
             _, res = self.create_resource(**resource_params)
-            metric_uuid = res['metrics'][
+
+            # Generate host_cpu_usage fake metrics
+            cpu_metric_uuid = res['metrics'][
                 self.GNOCCHI_METRIC_MAP['host_cpu_usage']
             ]
-            # Generate host_cpu_usage fake metrics
             if h['hypervisor_hostname'] in loaded_hosts:
-                measures = self._make_measures_host(10, 1, min=80, max=90)
+                cpu_measures = self._make_measures_host(10, 1, min=80, max=90)
             else:
-                measures = self._make_measures_host(10, 1)
-            self.gnocchi.add_measures(metric_uuid, measures)
+                cpu_measures = self._make_measures_host(10, 1)
+            self.gnocchi.add_measures(cpu_metric_uuid, cpu_measures)
+
+            # Generate host_ram_usage fake metrics
+            ram_metric_uuid = res['metrics'][
+                self.GNOCCHI_METRIC_MAP['host_ram_usage']
+            ]
+            if h['hypervisor_hostname'] in loaded_hosts:
+                mem_measures = self._make_measures_host(
+                    10, 1,
+                    min=int(h['memory_mb']) * 0.7,
+                    max=int(h['memory_mb']) * 0.8)
+            else:
+                mem_measures = self._make_measures_host(
+                    10, 1,
+                    min=int(h['memory_mb']) * 0.1,
+                    max=int(h['memory_mb']) * 0.2)
+            self.gnocchi.add_measures(ram_metric_uuid, mem_measures)
 
     def _show_measures(self, metric_uuid):
         try:
@@ -447,7 +483,7 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
         :param instance: Instance response body
         :param metrics: The metrics add to resource when using Gnocchi
         """
-        all_flavors = self.flavors_client.list_flavors()['flavors']
+        all_flavors = self.flavors_client.list_flavors(detail=True)['flavors']
         flavor_name = instance['flavor']['original_name']
         flavor = [f for f in all_flavors if f['name'] == flavor_name]
         if metrics == dict():
@@ -455,6 +491,10 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
                 self.GNOCCHI_METRIC_MAP["instance_cpu_usage"]: {
                     'archive_policy_name': 'ceilometer-low-rate',
                     'unit': 'ms'
+                },
+                self.GNOCCHI_METRIC_MAP["instance_ram_usage"]: {
+                    'archive_policy_name': 'ceilometer-low-rate',
+                    'unit': 'MB'
                 }
             }
         else:
@@ -474,18 +514,33 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
             'id': instance['id']
         }
         _, res = self.create_resource(**resource_params)
+
         # Generates cpu fake metrics
-        metric_uuid = res['metrics'][
+        cpu_metric_uuid = res['metrics'][
             self.GNOCCHI_METRIC_MAP["instance_cpu_usage"]
         ]
-        measures = self._make_measures_instance(5, 3)
-        self.gnocchi.add_measures(metric_uuid, measures)
-        self.assertTrue(test_utils.call_until_true(
-            func=functools.partial(
-                self._show_measures, metric_uuid),
-            duration=600,
-            sleep_for=2
-        ))
+        cpu_measures = self._make_measures_instance(5, 3, metric_type='cpu')
+        self.gnocchi.add_measures(cpu_metric_uuid, cpu_measures)
+
+        # Generate ram fake metrics
+
+        ram_metric_uuid = res['metrics'][
+            self.GNOCCHI_METRIC_MAP["instance_ram_usage"]
+        ]
+        ram_measures = self._make_measures_instance(
+            5, 3,
+            min=int(flavor[0]['ram']) * 0.7,
+            max=int(flavor[0]['ram']) * 0.8,
+            metric_type='ram')
+        self.gnocchi.add_measures(ram_metric_uuid, ram_measures)
+
+        for metric_uuid in [cpu_metric_uuid, ram_metric_uuid]:
+            self.assertTrue(test_utils.call_until_true(
+                func=functools.partial(
+                    self._show_measures, metric_uuid),
+                duration=600,
+                sleep_for=2
+            ))
 
     # ### PROMETHEUS ### #
     def _generate_prometheus_metrics(self,
@@ -562,13 +617,24 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
         }
         # Generate cpu usage data for a instance
         # unit is ns, so for a 80%, inc_factor is 0.8 * 1e+9
-        data = self._generate_prometheus_metrics(
+        cpu_data = self._generate_prometheus_metrics(
             self.PROMETHEUS_METRIC_MAP['instance_cpu_usage'],
             labels=instance_labels,
             start_value=1.0,
             inc_factor=8e+8)
 
-        self.prometheus_client.add_measures(data)
+        # Generate memory usage data for a instance consuming 80%
+        # unit is megabytes, total is obtained from flavor
+        # no inc_factor as memory is saved as gauge
+        mem_usage_mb = int(instance['flavor']['ram'] * 0.8)
+        ram_data = self._generate_prometheus_metrics(
+            self.PROMETHEUS_METRIC_MAP['instance_ram_usage'],
+            labels=instance_labels,
+            start_value=mem_usage_mb,
+            inc_factor=0)
+
+        self.prometheus_client.add_measures(cpu_data)
+        self.prometheus_client.add_measures(ram_data)
 
     def make_host_statistic_prometheus(self, loaded_hosts=[]):
         """Create host resource and its measures in Prometheus.
@@ -599,18 +665,31 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
                     # Generate host usage data
                     # unit is seconds, that represent cpu in idle
                     if h['hypervisor_hostname'] in loaded_hosts:
-                        data = self._generate_prometheus_metrics(
+                        cpu_data = self._generate_prometheus_metrics(
                             self.PROMETHEUS_METRIC_MAP['host_cpu_usage'],
                             labels=host_labels,
                             start_value=1.0,
                             inc_factor=0.0)
                     else:
-                        data = self._generate_prometheus_metrics(
+                        cpu_data = self._generate_prometheus_metrics(
                             self.PROMETHEUS_METRIC_MAP['host_cpu_usage'],
                             labels=host_labels,
                             start_value=1.0,
                             inc_factor=1.0)
-                    self.prometheus_client.add_measures(data)
+                    self.prometheus_client.add_measures(cpu_data)
+                # Generate memory usage data for a hypervisors
+                # simulate 80% of memory usage on loaded_hosts
+                # simulate 10% of memory load on others
+                # unit is megabytes, total is obtained from hypervisor
+                # no inc_factor as memory is saved as gauge
+                load = 0.8 if h['hypervisor_hostname'] in loaded_hosts else 0.1
+                mem_available_mb = int(h['memory_mb'] * (1 - load))
+                ram_data = self._generate_prometheus_metrics(
+                    self.PROMETHEUS_METRIC_MAP['host_ram_usage'],
+                    labels=host_labels,
+                    start_value=mem_available_mb,
+                    inc_factor=0)
+                self.prometheus_client.add_measures(ram_data)
 
     # ### AUDIT TEMPLATES ### #
 
