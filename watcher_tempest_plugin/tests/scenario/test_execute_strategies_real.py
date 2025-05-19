@@ -31,7 +31,12 @@ class TestRealExecuteStrategies(base.BaseInfraOptimScenarioTest):
 
     # Commands used to create load for different metrics
     COMMANDS_CREATE_LOAD = dict(
-        instance_cpu_usage='nohup dd if=/dev/random of=/dev/null &',)
+        instance_cpu_usage='nohup dd if=/dev/random of=/dev/null &',
+        instance_ram_usage=(
+            "yes | head -c $(($(grep MemAvailable /proc/meminfo | "
+            "awk '{print $2}')*9/10))k >/run/x"
+        )
+    )
 
     @classmethod
     def skip_checks(cls):
@@ -56,8 +61,74 @@ class TestRealExecuteStrategies(base.BaseInfraOptimScenarioTest):
                 "Less than 2 compute nodes are enabled, "
                 "skipping multinode tests.")
 
-    @decorators.attr(type=['slow', 'real_load'])
+    @decorators.attr(type=['slow', 'real_load', 'cpu'])
+    @decorators.idempotent_id('672a7a4d-91a0-4753-a7a4-be28db8c1bfb')
+    def test_workload_balance_strategy_cpu(self):
+        # This test does not require metrics injection
+        self.addCleanup(self.rollback_compute_nodes_status)
+        self.addCleanup(self.wait_delete_instances_from_model)
+        host = self.get_enabled_compute_nodes()[0]['host']
+        instances = []
+        for _ in range(4):
+            instance = self._create_instance(
+                host=host,
+                run_command=self.COMMANDS_CREATE_LOAD['instance_cpu_usage'])
+            instances.append(instance)
+
+        # wait for compute model updates
+        self.wait_for_instances_in_model(instances)
+
+        # This is the time that we want to generate metrics
+        time.sleep(CONF.optimize.real_workload_period)
+
+        audit_parameters = {
+            "metrics": "instance_cpu_usage",
+            "threshold": 20,
+            "period": CONF.optimize.real_workload_period,
+            "granularity": 300}
+
+        goal_name = "workload_balancing"
+        strategy_name = "workload_balance"
+        audit_kwargs = {"parameters": audit_parameters}
+
+        self.execute_strategy(goal_name, strategy_name,
+                              expected_actions=['migrate'], **audit_kwargs)
+
+    @decorators.attr(type=['slow', 'real_load', 'ram'])
+    @decorators.idempotent_id('f1b8a0c4-2d3e-4a5b-8f7c-6d9e5f2a0b1c')
+    def test_workload_balance_strategy_ram(self):
+        # This test does not require metrics injection
+        self.addCleanup(self.rollback_compute_nodes_status)
+        self.addCleanup(self.wait_delete_instances_from_model)
+        host = self.get_enabled_compute_nodes()[0]['host']
+        instances = []
+        for _ in range(4):
+            instance = self._create_instance(
+                host=host,
+                run_command=self.COMMANDS_CREATE_LOAD['instance_ram_usage'])
+            instances.append(instance)
+
+        # wait for compute model updates
+        self.wait_for_instances_in_model(instances)
+
+        # This is the time that we want to generate metrics
+        time.sleep(CONF.optimize.real_workload_period)
+
+        audit_parameters = {
+            "metrics": "instance_ram_usage",
+            "threshold": 2,
+            "period": CONF.optimize.real_workload_period,
+            "granularity": 300}
+
+        goal_name = "workload_balancing"
+        strategy_name = "workload_balance"
+        audit_kwargs = {"parameters": audit_parameters}
+
+        self.execute_strategy(goal_name, strategy_name,
+                              expected_actions=['migrate'], **audit_kwargs)
+
     @decorators.idempotent_id('95c7f20b-cd6e-4763-b1be-9a6ac7b5331c')
+    @decorators.attr(type=['slow', 'real_load'])
     def test_workload_stabilization_strategy(self):
         # This test does not require metrics injection
 
