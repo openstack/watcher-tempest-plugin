@@ -42,6 +42,13 @@ from watcher_tempest_plugin import infra_optim_clients as clients
 LOG = log.getLogger(__name__)
 CONF = config.CONF
 
+# Minimal Nova API required to specify the hosts used when creating
+# instances is 2.74.This constant will be used to set the minimal
+# version of nova to be used in tests which use create_one_instance_per_host.
+# Note that it will not affect the version of the Nova API used by
+# Watcher, only the version used by tempest when used from those tests.
+NOVA_API_VERSION_CREATE_WITH_HOST = '2.74'
+
 
 class BaseInfraOptimScenarioTest(manager.ScenarioTest):
     """Base class for Infrastructure Optimization API tests."""
@@ -78,7 +85,7 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
 
     @classmethod
     def skip_checks(cls):
-        super(manager.ScenarioTest, cls).skip_checks()
+        super(BaseInfraOptimScenarioTest, cls).skip_checks()
         if not CONF.service_available.watcher:
             raise cls.skipException('Watcher support is required')
 
@@ -99,7 +106,7 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
     def setUp(self):
         super(BaseInfraOptimScenarioTest, self).setUp()
         self.useFixture(api_microversion_fixture.APIMicroversionFixture(
-            compute_microversion=CONF.compute.min_microversion))
+            compute_microversion=self.compute_request_microversion))
         self.useFixture(api_microversion_fixture.APIMicroversionFixture(
             placement_microversion=CONF.placement.min_microversion))
 
@@ -231,7 +238,8 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
 
     def _live_migrate(self, server_id, target_host, state):
         self._migrate_server_to(server_id, target_host)
-        waiters.wait_for_server_status(self.servers_client, server_id, state)
+        waiters.wait_for_server_status(self.os_admin.servers_client,
+                                       server_id, state)
         migration_list = (self.mgr.migrations_client.list_migrations()
                           ['migrations'])
 
@@ -288,15 +296,18 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
                 time.sleep(30)
                 retry -= 1
             self.assertNotEqual(0, retry)
+            # We enforce the compute node where we create the instance to
+            # make sure we have one node on each compute.
+            # This requires Nova API version 2.74 or higher.
+            kwargs_server = {'host': node['host']}
             # In case we want to run commands we will be injecting it via
             # user_data which requires to setup the instance as validatable
             # in tempest.common.compute.create_test_server
-            kwargs_server = {}
             validatable = False
             validation_resources = None
             if run_command:
                 validation_resources = self.get_test_validation_resources(
-                    self.os_primary)
+                    self.os_admin)
                 validatable = True
                 script = '''
                          #!/bin/sh
@@ -309,7 +320,7 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
             # landed on the host in question.
             instance = self.create_server(
                 image_id=CONF.compute.image_ref, wait_until='ACTIVE',
-                clients=self.os_primary, validatable=validatable,
+                clients=self.os_admin, validatable=validatable,
                 validation_resources=validation_resources,
                 **kwargs_server)
             # get instance object again as admin

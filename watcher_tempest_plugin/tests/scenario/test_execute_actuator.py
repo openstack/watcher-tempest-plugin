@@ -29,6 +29,9 @@ CONF = config.CONF
 
 class TestExecuteActionsViaActuator(base.BaseInfraOptimScenarioTest):
 
+    # Minimal version required for _create_one_instance_per_host_with_statistic
+    compute_min_microversion = base.NOVA_API_VERSION_CREATE_WITH_HOST
+
     scenarios = [
         ("nop", {"actions": [
             {"action_type": "nop",

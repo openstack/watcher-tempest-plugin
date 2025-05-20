@@ -26,6 +26,9 @@ LOG = log.getLogger(__name__)
 class TestRealExecuteStrategies(base.BaseInfraOptimScenarioTest):
     """Tests with real data for strategies"""
 
+    # Minimal version required for _create_one_instance_per_host_with_statistic
+    compute_min_microversion = base.NOVA_API_VERSION_CREATE_WITH_HOST
+
     # Commands used to create load for different metrics
     COMMANDS_CREATE_LOAD = dict(
         instance_cpu_usage='nohup dd if=/dev/random of=/dev/null &',)

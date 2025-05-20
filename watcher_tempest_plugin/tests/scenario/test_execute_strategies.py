@@ -26,6 +26,9 @@ CONF = config.CONF
 class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
     """Tests for strategies"""
 
+    # Minimal version required for _create_one_instance_per_host_with_statistic
+    compute_min_microversion = base.NOVA_API_VERSION_CREATE_WITH_HOST
+
     @classmethod
     def skip_checks(cls):
         super(TestExecuteStrategies, cls).skip_checks()

@@ -30,6 +30,9 @@ LOG = log.getLogger(__name__)
 class TestExecuteHostMaintenanceStrategy(base.BaseInfraOptimScenarioTest):
     """Tests for host_maintenance"""
 
+    # Minimal version required for _create_one_instance_per_host_with_statistic
+    compute_min_microversion = base.NOVA_API_VERSION_CREATE_WITH_HOST
+
     GOAL = "cluster_maintaining"
 
     @classmethod

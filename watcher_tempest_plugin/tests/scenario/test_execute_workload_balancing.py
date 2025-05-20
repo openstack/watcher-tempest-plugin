@@ -31,6 +31,9 @@ LOG = log.getLogger(__name__)
 class TestExecuteWorkloadBalancingStrategy(base.BaseInfraOptimScenarioTest):
     """Tests for action plans"""
 
+    # Minimal version required for _create_one_instance_per_host_with_statistic
+    compute_min_microversion = base.NOVA_API_VERSION_CREATE_WITH_HOST
+
     GOAL = "workload_balancing"
 
     @classmethod
