@@ -815,23 +815,40 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
             return False
 
     def wait_for_instances_in_model(self, instances, timeout=300):
-        """Waits until all instance ids are mapped to a model."""
+        """Waits until all instance ids are mapped to a model.
+
+        Get the model and save instance ids and hypervisor hostname
+        Get instances details and save instance ids and current hypervisora
+        hostname
+        (hypervisor hostname from argument is the one where it was created)
+        Compare the two lists and wait until they are equal.
+        """
+
         timeout_end = time.time() + timeout
 
         _, body = self.client.list_data_models(data_model_type="compute")
-        model_uuids = [s["server_uuid"]
-                       for s in body.get("context", []) if "server_uuid" in s]
+        model_pairs = [(s['server_uuid'], s['node_hostname'])
+                       for s in body.get('context', [])
+                       if 'server_uuid' in s and 'node_hostname' in s]
+        instance_pairs = []
+        for instance in instances:
+            s = self.mgr.servers_client.show_server(instance['id'])['server']
+            instance_pairs.append((s['id'], s['OS-EXT-SRV-ATTR:host']))
 
-        ids = [instance['id'] for instance in instances]
-        while not set(ids) <= set(model_uuids):
+        # If no instances were created, we should not wait for them
+        if not instance_pairs:
+            raise Exception("No instances were created.")
+
+        # Check all instances are in the model and model is not empty
+        while (not set(instance_pairs) <= set(model_pairs) or not model_pairs):
             time.sleep(15)
             if time.time() >= timeout_end:
                 raise Exception("Instances are not mapped to compute model.")
 
             _, body = self.client.list_data_models(data_model_type="compute")
-            model_uuids = [
-                s["server_uuid"]
-                for s in body.get("context", []) if "server_uuid" in s]
+            model_pairs = [(s['server_uuid'], s['node_hostname'])
+                           for s in body.get('context', [])
+                           if 'server_uuid' in s and 'node_hostname' in s]
 
     def wait_delete_instances_from_model(self, timeout=300):
         """Waits until all deleted instaces be removed from model."""
