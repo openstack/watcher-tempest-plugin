@@ -18,6 +18,9 @@
     gate:
       jobs:
         - watcher-tempest-functional
+    experimental:
+      jobs:
+        - watcher-prometheus-integration-realdata
 
 - job:
     name: watcher-tempest-functional-2025-1
