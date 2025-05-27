@@ -341,8 +341,8 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
 
     def _make_measures_host(self, measures_count, time_step, min=10, max=20):
         measures_body = []
-        now = datetime.now(timezone.utc)
-        for i in range(1, measures_count + 1):
+        now = datetime.now(timezone.utc) + timedelta(minutes=2)
+        for i in range(0, measures_count):
             dt = now - timedelta(minutes=i * time_step)
             measures_body.append(
                 dict(value=random.randint(int(min), int(max)),
@@ -353,11 +353,11 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
     def _make_measures_instance(self, measures_count, time_step,
                                 min=80, max=90, metric_type='cpu'):
         measures_body = []
-        now = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc) + timedelta(minutes=2)
 
         if metric_type == "cpu":
             final_cpu = (measures_count + 1) * 60 * time_step * 1e9
-            for i in range(1, measures_count + 1):
+            for i in range(0, measures_count):
                 dt = now - timedelta(minutes=i * time_step)
                 cpu = final_cpu - ((i - 1) * 60 * time_step * 1e9
                                    * random.randint(int(min), int(max)) / 100)
@@ -366,7 +366,7 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
                          timestamp=dt.replace(microsecond=0).isoformat())
                 )
         elif metric_type == "ram":
-            for i in range(1, measures_count + 1):
+            for i in range(0, measures_count):
                 dt = now - timedelta(minutes=i * time_step)
                 ram = random.randint(int(min), int(max))
                 measures_body.append(

@@ -200,7 +200,7 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
 
         audit_parameters = {
             "metrics": ["instance_cpu_usage"],
-            "thresholds": {"instance_cpu_usage": 0.1},
+            "thresholds": {"instance_cpu_usage": 0.05},
             "weights": {"instance_cpu_usage_weight": 1.0},
             "periods": {"instance": 400, "compute_node": 300},
             "instance_metrics": {"instance_cpu_usage": "host_cpu_usage"},
