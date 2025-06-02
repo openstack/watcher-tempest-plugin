@@ -11,11 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import functools
-
 from oslo_log import log
 from tempest import config
-from tempest.lib.common.utils import test_utils
 from tempest.lib import decorators
 
 from watcher_tempest_plugin.tests.scenario import base
@@ -26,6 +23,9 @@ LOG = log.getLogger(__name__)
 
 class TestExecuteZoneMigrationStrategy(base.BaseInfraOptimScenarioTest):
     """Tests for action plans"""
+
+    # Minimal version required for _create_one_instance_per_host_with_statistic
+    compute_min_microversion = base.NOVA_API_VERSION_CREATE_WITH_HOST
 
     GOAL = "hardware_maintenance"
     # This test does not require metrics injection
@@ -52,84 +52,57 @@ class TestExecuteZoneMigrationStrategy(base.BaseInfraOptimScenarioTest):
                 "Less than 2 compute nodes are enabled, "
                 "skipping multinode tests.")
 
-    @decorators.idempotent_id('ebc05585-0b7c-4cb4-b9ee-43758780e70e')
-    def test_execute_zone_migration_live_migration(self):
-        """Execute an action plan using the zone migration strategy"""
+    @decorators.idempotent_id('2119b69f-1cbd-4874-a82e-fceec093ebbb')
+    @decorators.attr(type=['strategy', 'zone_migration'])
+    def test_execute_zone_migration_with_destination_host(self):
+        # This test requires metrics injection
+        INJECT_METRICS = False
+
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
-        instance = self.create_server(image_id=CONF.compute.image_ref,
-                                      wait_until='ACTIVE',
-                                      clients=self.os_primary)
-        instance = self.mgr.servers_client.show_server(
-            instance['id'])['server']
-        host = self.get_host_for_server(instance['id'])
-        # Wait for the instance to be added in compute model
-        self.wait_for_instances_in_model([instance])
+        instances = self._create_instances_per_host_with_statistic(
+            inject=INJECT_METRICS)
+        # wait for compute model updates
+        self.wait_for_instances_in_model(instances)
 
-        vacant_node = [hyp['hypervisor_hostname'] for hyp
-                       in self.get_hypervisors_setup()
-                       if hyp['state'] == 'up'
-                       and hyp['hypervisor_hostname'] != host][0]
+        src_node = self.get_host_for_server(instances[0]['id'])
+        dst_node = self.get_host_other_than(instances[0]['id'])
 
         audit_parameters = {
-            "compute_nodes": [{"src_node": host, "dst_node": vacant_node}],
+            "compute_nodes": [{"src_node": src_node, "dst_node": dst_node}],
             }
 
-        _, goal = self.client.show_goal(self.GOAL)
-        _, strategy = self.client.show_strategy("zone_migration")
-        _, audit_template = self.create_audit_template(
-            goal['uuid'], strategy=strategy['uuid'])
+        goal_name = "hardware_maintenance"
+        strategy_name = "zone_migration"
+        audit_kwargs = {"parameters": audit_parameters}
 
-        self.assertTrue(test_utils.call_until_true(
-            func=functools.partial(
-                self.has_action_plans_finished),
-            duration=600,
-            sleep_for=2
-        ))
+        self.execute_strategy(goal_name, strategy_name,
+                              expected_actions=['migrate'],
+                              **audit_kwargs)
 
-        _, audit = self.create_audit(
-            audit_template['uuid'], parameters=audit_parameters)
+    @decorators.idempotent_id('e4f192ca-26d4-4e38-bb86-4be4aeaabb24')
+    @decorators.attr(type=['strategy', 'zone_migration'])
+    def test_execute_zone_migration_without_destination_host(self):
+        # This test requires metrics injection
+        INJECT_METRICS = False
 
-        try:
-            self.assertTrue(test_utils.call_until_true(
-                func=functools.partial(
-                    self.has_audit_finished, audit['uuid']),
-                duration=600,
-                sleep_for=2
-            ))
-        except ValueError:
-            self.fail("The audit has failed!")
+        self.addCleanup(self.rollback_compute_nodes_status)
+        self.addCleanup(self.wait_delete_instances_from_model)
+        instances = self._create_instances_per_host_with_statistic(
+            inject=INJECT_METRICS)
+        # wait for compute model updates
+        self.wait_for_instances_in_model(instances)
 
-        _, finished_audit = self.client.show_audit(audit['uuid'])
-        if finished_audit.get('state') in ('FAILED', 'CANCELLED'):
-            self.fail("The audit ended in unexpected state: %s!" %
-                      finished_audit.get('state'))
+        src_node = self.get_host_for_server(instances[0]['id'])
 
-        _, action_plans = self.client.list_action_plans(
-            audit_uuid=audit['uuid'])
-        action_plan = action_plans['action_plans'][0]
+        audit_parameters = {
+            "compute_nodes": [{"src_node": src_node}],
+            }
 
-        _, action_plan = self.client.show_action_plan(action_plan['uuid'])
+        goal_name = "hardware_maintenance"
+        strategy_name = "zone_migration"
+        audit_kwargs = {"parameters": audit_parameters}
 
-        if action_plan['state'] in ('SUPERSEDED', 'SUCCEEDED'):
-            # This means the action plan is superseded so we cannot trigger it,
-            # or it is empty.
-            return
-
-        # Execute the action by changing its state to PENDING
-        _, updated_ap = self.client.start_action_plan(action_plan['uuid'])
-
-        self.assertTrue(test_utils.call_until_true(
-            func=functools.partial(
-                self.has_action_plan_finished, action_plan['uuid']),
-            duration=600,
-            sleep_for=2
-        ))
-        _, finished_ap = self.client.show_action_plan(action_plan['uuid'])
-        _, action_list = self.client.list_actions(
-            action_plan_uuid=finished_ap["uuid"])
-        self.assertIn(updated_ap['state'], ('PENDING', 'ONGOING'))
-        self.assertIn(finished_ap['state'], ('SUCCEEDED', 'SUPERSEDED'))
-
-        for action in action_list['actions']:
-            self.assertEqual('SUCCEEDED', action.get('state'))
+        self.execute_strategy(goal_name, strategy_name,
+                              expected_actions=['migrate'],
+                              **audit_kwargs)

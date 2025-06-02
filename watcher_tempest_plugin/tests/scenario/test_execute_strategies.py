@@ -217,31 +217,6 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
         self.execute_strategy(goal_name, strategy_name,
                               expected_actions=['migrate'], **audit_kwargs)
 
-    @decorators.idempotent_id('2119b69f-1cbd-4874-a82e-fceec093ebbb')
-    def test_execute_zone_migration_live_migration_strategy(self):
-        # This test requires metrics injection
-        INJECT_METRICS = True
-
-        self.addCleanup(self.rollback_compute_nodes_status)
-        self.addCleanup(self.wait_delete_instances_from_model)
-        instances = self._create_instances_per_host_with_statistic(
-            inject=INJECT_METRICS)
-        node = self.get_host_for_server(instances[0]['id'])
-        # wait for compute model updates
-        self.wait_for_instances_in_model(instances)
-
-        vacant_node = self.get_host_other_than(instances[0]['id'])
-
-        audit_parameters = {
-            "compute_nodes": [{"src_node": node, "dst_node": vacant_node}],
-            }
-
-        goal_name = "hardware_maintenance"
-        strategy_name = "zone_migration"
-        audit_kwargs = {"parameters": audit_parameters}
-
-        self.execute_strategy(goal_name, strategy_name, **audit_kwargs)
-
     @decorators.idempotent_id('c0c061e9-4713-4a23-a6e1-5db794add685')
     def test_execute_node_resource_consolidation_strategy_with_auto(self):
         # This test does not require metrics injection
