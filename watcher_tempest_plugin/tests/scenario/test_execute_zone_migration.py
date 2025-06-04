@@ -65,17 +65,17 @@ class TestExecuteZoneMigrationStrategy(base.BaseInfraOptimScenarioTest):
                                       clients=self.os_primary)
         instance = self.mgr.servers_client.show_server(
             instance['id'])['server']
-        node = instance.get('OS-EXT-SRV-ATTR:hypervisor_hostname')
+        host = self.get_host_for_server(instance['id'])
         # Wait for the instance to be added in compute model
         self.wait_for_instances_in_model([instance])
 
         vacant_node = [hyp['hypervisor_hostname'] for hyp
                        in self.get_hypervisors_setup()
                        if hyp['state'] == 'up'
-                       and hyp['hypervisor_hostname'] != node][0]
+                       and hyp['hypervisor_hostname'] != host][0]
 
         audit_parameters = {
-            "compute_nodes": [{"src_node": node, "dst_node": vacant_node}],
+            "compute_nodes": [{"src_node": host, "dst_node": vacant_node}],
             }
 
         _, goal = self.client.show_goal(self.GOAL)
