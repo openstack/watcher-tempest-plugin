@@ -14,11 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import functools
-
 from oslo_log import log
 from tempest import config
-from tempest.lib.common.utils import test_utils
 from tempest.lib import decorators
 
 from watcher_tempest_plugin.tests.scenario import base
@@ -56,9 +53,9 @@ class TestExecuteHostMaintenanceStrategy(base.BaseInfraOptimScenarioTest):
                 "Less than 2 compute nodes are enabled, "
                 "skipping multinode tests.")
 
-    @decorators.idempotent_id('a9b4abb1-c8fc-410c-86b5-96a7c4150104')
-    def test_execute_host_maintenance(self):
-        """Execute an action plan using the host_maintenance strategy"""
+    @decorators.idempotent_id('17afd352-1929-46dd-a10a-63c90bb9255d')
+    @decorators.attr(type=['strategy', 'host_maintenance'])
+    def test_execute_host_maintenance_strategy(self):
         # This test does not require metrics injection
         INJECT_METRICS = False
 
@@ -67,70 +64,53 @@ class TestExecuteHostMaintenanceStrategy(base.BaseInfraOptimScenarioTest):
         instances = self._create_instances_per_host_with_statistic(
             inject=INJECT_METRICS
         )
-        host = self.get_host_for_server(instances[0]['id'])
-        audit_parameters = {"maintenance_node": host}
         # wait for compute model updates
         self.wait_for_instances_in_model(instances)
 
-        _, goal = self.client.show_goal(self.GOAL)
-        _, strategy = self.client.show_strategy("host_maintenance")
-        _, audit_template = self.create_audit_template(
-            goal['uuid'], strategy=strategy['uuid'])
+        src_node = self.get_host_for_server(instances[0]['id'])
 
-        self.assertTrue(test_utils.call_until_true(
-            func=functools.partial(
-                self.has_action_plans_finished),
-            duration=600,
-            sleep_for=2
-        ))
+        goal_name = "cluster_maintaining"
+        strategy_name = "host_maintenance"
+        audit_kwargs = {
+            "parameters": {
+                "maintenance_node": src_node
+            }
+        }
+        self.execute_strategy(goal_name, strategy_name,
+                              expected_actions=['change_nova_service_state',
+                                                'migrate'],
+                              **audit_kwargs)
 
-        _, audit = self.create_audit(
-            audit_template['uuid'], parameters=audit_parameters)
+    @decorators.idempotent_id('cc5a0f1b-e8d2-4813-b012-874982d15d06')
+    @decorators.attr(type=['strategy', 'host_maintenance'])
+    def test_execute_host_maintenance_strategy_backup_node(self):
+        # This test does not require metrics injection
+        INJECT_METRICS = False
 
-        try:
-            self.assertTrue(test_utils.call_until_true(
-                func=functools.partial(
-                    self.has_audit_finished, audit['uuid']),
-                duration=600,
-                sleep_for=2
-            ))
-        except ValueError:
-            self.fail("The audit has failed!")
+        self.addCleanup(self.rollback_compute_nodes_status)
+        self.addCleanup(self.wait_delete_instances_from_model)
+        instances = self._create_instances_per_host_with_statistic(
+            inject=INJECT_METRICS)
+        # wait for compute model updates
+        self.wait_for_instances_in_model(instances)
 
-        _, finished_audit = self.client.show_audit(audit['uuid'])
-        if finished_audit.get('state') in ('FAILED', 'CANCELLED'):
-            self.fail("The audit ended in unexpected state: %s!" %
-                      finished_audit.get('state'))
+        src_node = self.get_host_for_server(instances[0]['id'])
+        dst_node = self.get_host_other_than(instances[0]['id'])
 
-        _, action_plans = self.client.list_action_plans(
-            audit_uuid=audit['uuid'])
-        action_plan = action_plans['action_plans'][0]
+        goal_name = "cluster_maintaining"
+        strategy_name = "host_maintenance"
+        audit_kwargs = {
+            "parameters": {
+                "maintenance_node": src_node,
+                "backup_node": dst_node
+            }
+        }
 
-        _, action_plan = self.client.show_action_plan(action_plan['uuid'])
-        _, action_list = self.client.list_actions(
-            action_plan_uuid=action_plan["uuid"])
+        self.execute_strategy(goal_name, strategy_name,
+                              expected_actions=['change_nova_service_state',
+                                                'migrate'],
+                              **audit_kwargs)
 
-        if action_plan['state'] in ('SUPERSEDED', 'SUCCEEDED'):
-            # This means the action plan is superseded so we cannot trigger it,
-            # or it is empty.
-            return
-        for action in action_list['actions']:
-            self.assertEqual('PENDING', action.get('state'))
-
-        # Execute the action by changing its state to PENDING
-        _, updated_ap = self.client.start_action_plan(action_plan['uuid'])
-
-        self.assertTrue(test_utils.call_until_true(
-            func=functools.partial(
-                self.has_action_plan_finished, action_plan['uuid']),
-            duration=600,
-            sleep_for=2
-        ))
-        _, finished_ap = self.client.show_action_plan(action_plan['uuid'])
-        _, action_list = self.client.list_actions(
-            action_plan_uuid=finished_ap["uuid"])
-        self.assertIn(updated_ap['state'], ('PENDING', 'ONGOING'))
-        self.assertIn(finished_ap['state'], ('SUCCEEDED', 'SUPERSEDED'))
-
-        for action in action_list['actions']:
-            self.assertEqual('SUCCEEDED', action.get('state'))
+        # Make sure servers are migrated to backup node
+        for server in instances:
+            self.assertEqual(self.get_host_for_server(server['id']), dst_node)

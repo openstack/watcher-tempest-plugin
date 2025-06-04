@@ -85,63 +85,6 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
                               expected_actions=['sleep', 'nop'],
                               **audit_kwargs)
 
-    @decorators.idempotent_id('17afd352-1929-46dd-a10a-63c90bb9255d')
-    def test_execute_host_maintenance_strategy(self):
-        # This test does not require metrics injection
-        INJECT_METRICS = False
-
-        self.addCleanup(self.rollback_compute_nodes_status)
-        self.addCleanup(self.wait_delete_instances_from_model)
-        instances = self._create_instances_per_host_with_statistic(
-            inject=INJECT_METRICS)
-        host = self.get_host_for_server(instances[0]['id'])
-        # wait for compute model updates
-        self.wait_for_instances_in_model(instances)
-
-        goal_name = "cluster_maintaining"
-        strategy_name = "host_maintenance"
-        audit_kwargs = {
-            "parameters": {
-                "maintenance_node": host
-            }
-        }
-
-        self.execute_strategy(goal_name, strategy_name, **audit_kwargs)
-
-    @decorators.idempotent_id('cc5a0f1b-e8d2-4813-b012-874982d15d06')
-    def test_execute_host_maintenance_strategy_backup_node(self):
-        # This test does not require metrics injection
-        INJECT_METRICS = False
-
-        self.addCleanup(self.rollback_compute_nodes_status)
-        self.addCleanup(self.wait_delete_instances_from_model)
-        instances = self._create_instances_per_host_with_statistic(
-            inject=INJECT_METRICS)
-        host = self.get_host_for_server(instances[0]['id'])
-        # wait for compute model updates
-        self.wait_for_instances_in_model(instances)
-
-        backup_node = self.get_host_other_than(instances[0]['id'])
-
-        goal_name = "cluster_maintaining"
-        strategy_name = "host_maintenance"
-        audit_kwargs = {
-            "parameters": {
-                "maintenance_node": host,
-                "backup_node": backup_node
-            }
-        }
-
-        self.execute_strategy(goal_name, strategy_name,
-                              expected_actions=['change_nova_service_state',
-                                                'migrate'],
-                              **audit_kwargs)
-
-        # Make sure servers are migrated to backup node
-        for server in instances:
-            self.assertEqual(self.get_host_for_server(server['id']),
-                             backup_node)
-
     @decorators.idempotent_id('7e3a9195-acc5-40cf-96da-a0a2883294d3')
     def test_execute_storage_capacity_balance_strategy(self):
         self.addCleanup(self.rollback_compute_nodes_status)
