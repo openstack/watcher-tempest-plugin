@@ -85,7 +85,7 @@ class TestExecuteActionsViaActuator(base.BaseInfraOptimScenarioTest):
     def _prerequisite_param_for_migrate_action(self):
         # This test requires metrics injection
         INJECT_METRICS = True
-        created_instances = self._create_one_instance_per_host_with_statistic(
+        created_instances = self._create_instances_per_host_with_statistic(
             inject=INJECT_METRICS
         )
         source_node = self.get_host_for_server(created_instances[0]['id'])
@@ -103,7 +103,7 @@ class TestExecuteActionsViaActuator(base.BaseInfraOptimScenarioTest):
     def _prerequisite_param_for_resize_action(self):
         # This test requires metrics injection
         INJECT_METRICS = True
-        created_instances = self._create_one_instance_per_host_with_statistic(
+        created_instances = self._create_instances_per_host_with_statistic(
             inject=INJECT_METRICS
         )
         instance = created_instances[0]

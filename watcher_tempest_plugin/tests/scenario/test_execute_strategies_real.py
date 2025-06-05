@@ -64,7 +64,7 @@ class TestRealExecuteStrategies(base.BaseInfraOptimScenarioTest):
 
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
-        instances = self._create_one_instance_per_host_with_statistic(
+        instances = self._create_instances_per_host_with_statistic(
             run_command=self.COMMANDS_CREATE_LOAD['instance_cpu_usage'],
             inject=INJECT_METRICS)
         self._pack_all_created_instances_on_one_host(instances)

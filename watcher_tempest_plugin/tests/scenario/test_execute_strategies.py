@@ -56,7 +56,7 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
 
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
-        instances = self._create_one_instance_per_host_with_statistic(
+        instances = self._create_instances_per_host_with_statistic(
             inject=INJECT_METRICS)
         # wait for compute model updates
         self.wait_for_instances_in_model(instances)
@@ -92,7 +92,7 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
 
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
-        instances = self._create_one_instance_per_host_with_statistic(
+        instances = self._create_instances_per_host_with_statistic(
             inject=INJECT_METRICS)
         host = self.get_host_for_server(instances[0]['id'])
         # wait for compute model updates
@@ -115,7 +115,7 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
 
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
-        instances = self._create_one_instance_per_host_with_statistic(
+        instances = self._create_instances_per_host_with_statistic(
             inject=INJECT_METRICS)
         host = self.get_host_for_server(instances[0]['id'])
         # wait for compute model updates
@@ -170,7 +170,7 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
             'instance_ram_allocated': {},
             'instance_root_disk_size': {},
         }
-        instances = self._create_one_instance_per_host_with_statistic(
+        instances = self._create_instances_per_host_with_statistic(
             metrics, inject=INJECT_METRICS)
         # wait for compute model updates
         self.wait_for_instances_in_model(instances)
@@ -193,7 +193,7 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
 
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
-        instances = self._create_one_instance_per_host_with_statistic(
+        instances = self._create_instances_per_host_with_statistic(
             inject=INJECT_METRICS)
         used_host = self._pack_all_created_instances_on_one_host(instances)
         loaded_hosts = [used_host]
@@ -224,7 +224,7 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
 
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
-        instances = self._create_one_instance_per_host_with_statistic(
+        instances = self._create_instances_per_host_with_statistic(
             inject=INJECT_METRICS)
         node = self.get_host_for_server(instances[0]['id'])
         # wait for compute model updates
@@ -249,7 +249,7 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
 
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
-        instances = self._create_one_instance_per_host_with_statistic(
+        instances = self._create_instances_per_host_with_statistic(
             inject=INJECT_METRICS)
         # wait for compute model updates
         self.wait_for_instances_in_model(instances)
@@ -271,7 +271,7 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
 
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
-        instances = self._create_one_instance_per_host_with_statistic(
+        instances = self._create_instances_per_host_with_statistic(
             inject=INJECT_METRICS)
         # wait for compute model updates
         self.wait_for_instances_in_model(instances)

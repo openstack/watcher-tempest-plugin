@@ -67,7 +67,7 @@ class TestExecuteWorkloadBalancingStrategy(base.BaseInfraOptimScenarioTest):
         """Execute an action plan using the workload_stabilization strategy"""
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
-        instances = self._create_one_instance_per_host_with_statistic(
+        instances = self._create_instances_per_host_with_statistic(
             inject=INJECT_METRICS)
         self._pack_all_created_instances_on_one_host(instances)
         # wait for compute model updates

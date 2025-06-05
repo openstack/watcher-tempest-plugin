@@ -260,19 +260,25 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
 
         self.assertEqual(target_host, server_host, msg)
 
-    def _create_one_instance_per_host_with_statistic(self, metrics=dict(),
-                                                     run_command=None,
-                                                     inject=True):
-        """Create 1 instance per compute node and make instance statistic
+    def _create_instances_per_host_with_statistic(self, metrics=dict(),
+                                                  run_command=None,
+                                                  inject=True,
+                                                  num_instances=1):
+        """Create instance per compute node and make instance statistic
 
         This goes up to the min_compute_nodes threshold so that things don't
         get crazy if you have 1000 compute nodes but set min to 3.
 
+        For some tests we need more than one instance per host, as we need to
+        have more granularity for migrate and live_migrate tests.
+
         :param metrics: The metrics add to resource when using Gnocchi
         :param run_command: the command you want to run in the new instances
         :param inject: If set to True, inject metrics for created instances
+        :param instances: Number of instances to create per host
         :returns: A list of instance UUIDs.
         """
+
         compute_nodes = self.get_compute_nodes_setup()
         instances = self.mgr.servers_client.list_servers(
             detail=True)['servers']
@@ -322,19 +328,21 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
                 script_clean = textwrap.dedent(script).lstrip().encode('utf8')
                 script_b64 = base64.b64encode(script_clean)
                 kwargs_server['user_data'] = script_b64
+
             # by getting to active state here, this means this has
             # landed on the host in question.
-            instance = self.create_server(
-                image_id=CONF.compute.image_ref, wait_until='ACTIVE',
-                clients=self.os_admin, validatable=validatable,
-                validation_resources=validation_resources,
-                **kwargs_server)
-            # get instance object again as admin
-            instance = self.mgr.servers_client.show_server(
-                instance['id'])['server']
-            created_instances.append(instance)
-            if inject:
-                self.make_instance_statistic(instance, metrics=metrics)
+            for _ in range(num_instances):
+                instance = self.create_server(
+                    image_id=CONF.compute.image_ref, wait_until='ACTIVE',
+                    clients=self.os_admin, validatable=validatable,
+                    validation_resources=validation_resources,
+                    **kwargs_server)
+                # get instance object again as admin
+                instance = self.mgr.servers_client.show_server(
+                    instance['id'])['server']
+                created_instances.append(instance)
+                if inject:
+                    self.make_instance_statistic(instance, metrics=metrics)
 
         return created_instances
 

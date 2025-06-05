@@ -78,7 +78,7 @@ class TestExecuteVmWorkloadBalanceStrategy(base.BaseInfraOptimScenarioTest):
             'instance_ram_allocated': {},
             'instance_root_disk_size': {},
         }
-        instances = self._create_one_instance_per_host_with_statistic(
+        instances = self._create_instances_per_host_with_statistic(
             metrics, inject=INJECT_METRICS)
         # wait for compute model updates
         self.wait_for_instances_in_model(instances)
