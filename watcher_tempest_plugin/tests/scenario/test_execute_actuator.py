@@ -88,12 +88,11 @@ class TestExecuteActionsViaActuator(base.BaseInfraOptimScenarioTest):
         created_instances = self._create_one_instance_per_host_with_statistic(
             inject=INJECT_METRICS
         )
-        instance = created_instances[0]
-        source_node = created_instances[0]["OS-EXT-SRV-ATTR:host"]
-        destination_node = created_instances[-1]["OS-EXT-SRV-ATTR:host"]
+        source_node = self.get_host_for_server(created_instances[0]['id'])
+        destination_node = self.get_host_other_than(created_instances[0]['id'])
 
         parameters = {
-            "resource_id": instance['id'],
+            "resource_id": created_instances[0]['id'],
             "migration_type": "live",
             "source_node": source_node,
             "destination_node": destination_node
