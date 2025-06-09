@@ -128,6 +128,12 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
                 if srv.get('binary') == 'nova-compute']
 
     @classmethod
+    def get_enabled_compute_nodes(cls):
+        cls.initial_compute_nodes_setup = cls.get_compute_nodes_setup()
+        return [cn for cn in cls.initial_compute_nodes_setup
+                if cn.get('status') == 'enabled']
+
+    @classmethod
     def get_host_other_than(cls, server_id):
         source_host = cls.get_host_for_server(server_id)
 

@@ -40,9 +40,7 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
             raise cls.skipException("Live migration is not enabled")
 
         cls.wait_for_compute_node_setup()
-        cls.initial_compute_nodes_setup = cls.get_compute_nodes_setup()
-        enabled_compute_nodes = [cn for cn in cls.initial_compute_nodes_setup
-                                 if cn.get('status') == 'enabled']
+        enabled_compute_nodes = cls.get_enabled_compute_nodes()
         if len(enabled_compute_nodes) < 2:
             raise cls.skipException(
                 "Less than 2 compute nodes are enabled, "
