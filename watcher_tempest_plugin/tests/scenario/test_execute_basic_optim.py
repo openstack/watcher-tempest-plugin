@@ -47,9 +47,7 @@ class TestExecuteBasicStrategy(base.BaseInfraOptimScenarioTest):
         if not CONF.compute_feature_enabled.live_migration:
             raise cls.skipException("Live migration is not enabled")
 
-        cls.initial_compute_nodes_setup = cls.get_compute_nodes_setup()
-        enabled_compute_nodes = [cn for cn in cls.initial_compute_nodes_setup
-                                 if cn.get('status') == 'enabled']
+        enabled_compute_nodes = cls.get_enabled_compute_nodes()
 
         cls.wait_for_compute_node_setup()
 

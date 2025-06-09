@@ -71,10 +71,7 @@ class TestExecuteActionsViaActuator(base.BaseInfraOptimScenarioTest):
         if not CONF.compute_feature_enabled.live_migration:
             raise cls.skipException("Live migration is not enabled")
 
-        cls.initial_compute_nodes_setup = cls.get_compute_nodes_setup()
-        enabled_compute_nodes = [cn for cn in cls.initial_compute_nodes_setup
-                                 if cn.get('status') == 'enabled']
-
+        enabled_compute_nodes = cls.get_enabled_compute_nodes()
         cls.wait_for_compute_node_setup()
 
         if len(enabled_compute_nodes) < 2:
@@ -124,10 +121,7 @@ class TestExecuteActionsViaActuator(base.BaseInfraOptimScenarioTest):
         return parameters
 
     def _prerequisite_param_for_change_nova_service_state_action(self):
-        enabled_compute_nodes = [cn for cn in
-                                 self.initial_compute_nodes_setup
-                                 if cn.get('status') == 'enabled']
-        enabled_compute_node = enabled_compute_nodes[0]
+        enabled_compute_node = self.get_enabled_compute_nodes()[0]
 
         parameters = {
             "resource_id": enabled_compute_node['host'],
