@@ -126,7 +126,7 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
         self.execute_strategy(goal_name, strategy_name, **audit_kwargs)
 
     @decorators.idempotent_id('14360d59-4923-49f7-bfe5-31d6a819b6f7')
-    def test_execute_workload_stabilization_strategy(self):
+    def test_execute_workload_stabilization_strategy_cpu(self):
         # This test requires metrics injection
 
         self.addCleanup(self.rollback_compute_nodes_status)
@@ -150,6 +150,37 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
             "instance_metrics": {"instance_cpu_usage": "host_cpu_usage"},
             "granularity": 300,
             "aggregation_method": {"instance": "mean", "compute_node": "mean"}}
+
+        goal_name = "workload_balancing"
+        strategy_name = "workload_stabilization"
+        audit_kwargs = {"parameters": audit_parameters}
+
+        self.execute_strategy(goal_name, strategy_name,
+                              expected_actions=['migrate'], **audit_kwargs)
+
+    @decorators.idempotent_id('4988b894-b237-4ebc-9af1-ecf1f9ea734e')
+    def test_execute_workload_stabilization_strategy_ram(self):
+        # This test requires metrics injection
+
+        self.addCleanup(self.rollback_compute_nodes_status)
+        self.addCleanup(self.wait_delete_instances_from_model)
+        host = self.get_enabled_compute_nodes()[0]['host']
+        instances = []
+        for _ in range(2):
+            instance = self._create_instance(host=host)
+            instances.append(instance)
+
+        # wait for compute model updates
+        self.wait_for_instances_in_model(instances)
+        self.make_host_statistic(loaded_hosts=[host])
+        for instance in instances:
+            # Inject metrics after the instances are created
+            self.make_instance_statistic(instance)
+
+        audit_parameters = {
+            "metrics": ["instance_ram_usage"],
+            "thresholds": {"instance_ram_usage": 0.05},
+            "periods": {"instance": 400, "compute_node": 300}}
 
         goal_name = "workload_balancing"
         strategy_name = "workload_stabilization"
