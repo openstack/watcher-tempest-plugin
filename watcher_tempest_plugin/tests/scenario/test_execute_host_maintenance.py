@@ -27,7 +27,7 @@ LOG = log.getLogger(__name__)
 class TestExecuteHostMaintenanceStrategy(base.BaseInfraOptimScenarioTest):
     """Tests for host_maintenance"""
 
-    # Minimal version required for _create_one_instance_per_host_with_statistic
+    # Minimal version required for _create_one_instance_per_host
     compute_min_microversion = base.NOVA_API_VERSION_CREATE_WITH_HOST
 
     GOAL = "cluster_maintaining"
@@ -57,13 +57,10 @@ class TestExecuteHostMaintenanceStrategy(base.BaseInfraOptimScenarioTest):
     @decorators.attr(type=['strategy', 'host_maintenance'])
     def test_execute_host_maintenance_strategy(self):
         # This test does not require metrics injection
-        INJECT_METRICS = False
 
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
-        instances = self._create_instances_per_host_with_statistic(
-            inject=INJECT_METRICS
-        )
+        instances = self._create_one_instance_per_host()
         # wait for compute model updates
         self.wait_for_instances_in_model(instances)
 
@@ -85,12 +82,10 @@ class TestExecuteHostMaintenanceStrategy(base.BaseInfraOptimScenarioTest):
     @decorators.attr(type=['strategy', 'host_maintenance'])
     def test_execute_host_maintenance_strategy_backup_node(self):
         # This test does not require metrics injection
-        INJECT_METRICS = False
 
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
-        instances = self._create_instances_per_host_with_statistic(
-            inject=INJECT_METRICS)
+        instances = self._create_one_instance_per_host()
         # wait for compute model updates
         self.wait_for_instances_in_model(instances)
 

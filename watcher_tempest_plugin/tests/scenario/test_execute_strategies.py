@@ -26,7 +26,7 @@ CONF = config.CONF
 class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
     """Tests for strategies"""
 
-    # Minimal version required for _create_one_instance_per_host_with_statistic
+    # Minimal version required for _create_one_instance_per_host
     compute_min_microversion = base.NOVA_API_VERSION_CREATE_WITH_HOST
 
     @classmethod
@@ -51,13 +51,9 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
 
     @decorators.idempotent_id('62766a61-dfc4-478c-b80b-86d871227e67')
     def test_execute_basic_strategy(self):
-        # This test does not require metrics injection
-        INJECT_METRICS = False
-
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
-        instances = self._create_instances_per_host_with_statistic(
-            inject=INJECT_METRICS)
+        instances = self._create_one_instance_per_host()
         # wait for compute model updates
         self.wait_for_instances_in_model(instances)
         self.make_host_statistic()
@@ -103,7 +99,6 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
     @decorators.idempotent_id('9f3ee978-e033-4c1e-bbf2-9e5a5cb8a365')
     def test_execute_vm_workload_consolidation_strategy(self):
         # This test requires metrics injection
-        INJECT_METRICS = True
 
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
@@ -113,11 +108,12 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
             'instance_ram_allocated': {},
             'instance_root_disk_size': {},
         }
-        instances = self._create_instances_per_host_with_statistic(
-            metrics, inject=INJECT_METRICS)
+        instances = self._create_one_instance_per_host()
         # wait for compute model updates
         self.wait_for_instances_in_model(instances)
         self.make_host_statistic()
+        for instance in instances:
+            self.make_instance_statistic(instance, metrics=metrics)
 
         goal_name = "server_consolidation"
         strategy_name = "vm_workload_consolidation"
@@ -132,17 +128,19 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
     @decorators.idempotent_id('14360d59-4923-49f7-bfe5-31d6a819b6f7')
     def test_execute_workload_stabilization_strategy(self):
         # This test requires metrics injection
-        INJECT_METRICS = True
 
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
-        instances = self._create_instances_per_host_with_statistic(
-            inject=INJECT_METRICS)
-        used_host = self._pack_all_created_instances_on_one_host(instances)
-        loaded_hosts = [used_host]
+        host = self.get_enabled_compute_nodes()[0]['host']
+        instances = []
+        for _ in range(2):
+            instance = self._create_instance(host=host)
+            instances.append(instance)
         # wait for compute model updates
         self.wait_for_instances_in_model(instances)
-        self.make_host_statistic(loaded_hosts=loaded_hosts)
+        self.make_host_statistic(loaded_hosts=[host])
+        for instance in instances:
+            self.make_instance_statistic(instance)
 
         audit_parameters = {
             "metrics": ["instance_cpu_usage"],
@@ -163,12 +161,10 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
     @decorators.idempotent_id('c0c061e9-4713-4a23-a6e1-5db794add685')
     def test_execute_node_resource_consolidation_strategy_with_auto(self):
         # This test does not require metrics injection
-        INJECT_METRICS = False
 
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
-        instances = self._create_instances_per_host_with_statistic(
-            inject=INJECT_METRICS)
+        instances = self._create_one_instance_per_host()
         # wait for compute model updates
         self.wait_for_instances_in_model(instances)
 
@@ -185,12 +181,10 @@ class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
     @decorators.idempotent_id('12312f2b-ff7a-4722-9aa3-0262608e1ef0')
     def test_execute_node_resource_consolidation_strategy_with_specify(self):
         # This test does not require metrics injection
-        INJECT_METRICS = False
 
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
-        instances = self._create_instances_per_host_with_statistic(
-            inject=INJECT_METRICS)
+        instances = self._create_one_instance_per_host()
         # wait for compute model updates
         self.wait_for_instances_in_model(instances)
 

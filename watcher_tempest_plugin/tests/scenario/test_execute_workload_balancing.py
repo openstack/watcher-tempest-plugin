@@ -31,7 +31,7 @@ LOG = log.getLogger(__name__)
 class TestExecuteWorkloadBalancingStrategy(base.BaseInfraOptimScenarioTest):
     """Tests for action plans"""
 
-    # Minimal version required for _create_one_instance_per_host_with_statistic
+    # Minimal version required for _create_one_instance_per_host
     compute_min_microversion = base.NOVA_API_VERSION_CREATE_WITH_HOST
 
     GOAL = "workload_balancing"
@@ -62,14 +62,15 @@ class TestExecuteWorkloadBalancingStrategy(base.BaseInfraOptimScenarioTest):
     def test_execute_workload_stabilization(self):
 
         # This test requires metrics injection
-        INJECT_METRICS = True
 
         """Execute an action plan using the workload_stabilization strategy"""
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
-        instances = self._create_instances_per_host_with_statistic(
-            inject=INJECT_METRICS)
-        self._pack_all_created_instances_on_one_host(instances)
+        host = self.get_enabled_compute_nodes()[0]['host']
+        instances = []
+        for _ in range(2):
+            instance = self._create_instance(host=host)
+            instances.append(instance)
         # wait for compute model updates
         self.wait_for_instances_in_model(instances)
 

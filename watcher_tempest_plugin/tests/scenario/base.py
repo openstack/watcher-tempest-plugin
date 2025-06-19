@@ -19,6 +19,7 @@
 import base64
 import functools
 import json
+import os_traits
 import random
 import textwrap
 import time
@@ -26,7 +27,7 @@ import time
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
-import os_traits
+
 from oslo_log import log
 from tempest.common import waiters
 from tempest import config
@@ -260,22 +261,13 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
 
         self.assertEqual(target_host, server_host, msg)
 
-    def _create_instances_per_host_with_statistic(self, metrics=dict(),
-                                                  run_command=None,
-                                                  inject=True,
-                                                  num_instances=1):
-        """Create instance per compute node and make instance statistic
+    def _create_one_instance_per_host(self, run_command=None):
+        """Create one instance per compute node
 
         This goes up to the min_compute_nodes threshold so that things don't
         get crazy if you have 1000 compute nodes but set min to 3.
 
-        For some tests we need more than one instance per host, as we need to
-        have more granularity for migrate and live_migrate tests.
-
-        :param metrics: The metrics add to resource when using Gnocchi
         :param run_command: the command you want to run in the new instances
-        :param inject: If set to True, inject metrics for created instances
-        :param instances: Number of instances to create per host
         :returns: A list of instance UUIDs.
         """
 
@@ -308,43 +300,42 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
                 time.sleep(30)
                 retry -= 1
             self.assertNotEqual(0, retry)
-            # We enforce the compute node where we create the instance to
-            # make sure we have one node on each compute.
-            # This requires Nova API version 2.74 or higher.
-            kwargs_server = {'host': node['host']}
+            # by getting to active state here, this means this has
+            # landed on the host in question.
+            instance = self._create_instance(node['host'], run_command)
+            created_instances.append(instance)
+        return created_instances
+
+    def _create_instance(self, host=None, run_command=None):
+        # We enforce the compute node where we create the instance to
+        # make sure we have one node on each compute.
+        # This requires Nova API version 2.74 or higher.
+        kwargs_server = {'host': host} if host else {}
+        validatable = False
+        validation_resources = None
+        if run_command:
             # In case we want to run commands we will be injecting it via
             # user_data which requires to setup the instance as validatable
             # in tempest.common.compute.create_test_server
-            validatable = False
-            validation_resources = None
-            if run_command:
-                validation_resources = self.get_test_validation_resources(
-                    self.os_admin)
-                validatable = True
-                script = '''
-                         #!/bin/sh
-                         {run_command}
-                         '''.format(run_command=run_command)
-                script_clean = textwrap.dedent(script).lstrip().encode('utf8')
-                script_b64 = base64.b64encode(script_clean)
-                kwargs_server['user_data'] = script_b64
-
-            # by getting to active state here, this means this has
-            # landed on the host in question.
-            for _ in range(num_instances):
-                instance = self.create_server(
-                    image_id=CONF.compute.image_ref, wait_until='ACTIVE',
-                    clients=self.os_admin, validatable=validatable,
-                    validation_resources=validation_resources,
-                    **kwargs_server)
-                # get instance object again as admin
-                instance = self.mgr.servers_client.show_server(
-                    instance['id'])['server']
-                created_instances.append(instance)
-                if inject:
-                    self.make_instance_statistic(instance, metrics=metrics)
-
-        return created_instances
+            validation_resources = self.get_test_validation_resources(
+                self.os_admin)
+            validatable = True
+            script = '''
+                    #!/bin/sh
+                    {run_command}
+                    '''.format(run_command=run_command)
+            script_clean = textwrap.dedent(script).lstrip().encode('utf8')
+            script_b64 = base64.b64encode(script_clean)
+            kwargs_server['user_data'] = script_b64
+        instance = self.create_server(
+            image_id=CONF.compute.image_ref, wait_until='ACTIVE',
+            clients=self.os_admin, validatable=validatable,
+            validation_resources=validation_resources,
+            **kwargs_server)
+        # get instance object again as admin
+        instance = self.mgr.servers_client.show_server(
+            instance['id'])['server']
+        return instance
 
     def _pack_all_created_instances_on_one_host(self, instances):
         hypervisors = [

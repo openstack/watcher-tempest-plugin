@@ -26,7 +26,7 @@ LOG = log.getLogger(__name__)
 class TestRealExecuteStrategies(base.BaseInfraOptimScenarioTest):
     """Tests with real data for strategies"""
 
-    # Minimal version required for _create_one_instance_per_host_with_statistic
+    # Minimal version required for _create_one_instance_per_host
     compute_min_microversion = base.NOVA_API_VERSION_CREATE_WITH_HOST
 
     # Commands used to create load for different metrics
@@ -60,14 +60,16 @@ class TestRealExecuteStrategies(base.BaseInfraOptimScenarioTest):
     @decorators.idempotent_id('95c7f20b-cd6e-4763-b1be-9a6ac7b5331c')
     def test_workload_stabilization_strategy(self):
         # This test does not require metrics injection
-        INJECT_METRICS = False
 
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
-        instances = self._create_instances_per_host_with_statistic(
-            run_command=self.COMMANDS_CREATE_LOAD['instance_cpu_usage'],
-            inject=INJECT_METRICS)
-        self._pack_all_created_instances_on_one_host(instances)
+        run_command = self.COMMANDS_CREATE_LOAD['instance_cpu_usage']
+        host = self.get_enabled_compute_nodes()[0]['host']
+        instances = []
+        for _ in range(2):
+            instance = self._create_instance(host=host,
+                                             run_command=run_command)
+            instances.append(instance)
         # This is the time that we want to generate metrics
         time.sleep(CONF.optimize.real_workload_period)
         # wait for compute model updates

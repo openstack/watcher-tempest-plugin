@@ -29,7 +29,7 @@ CONF = config.CONF
 
 class TestExecuteActionsViaActuator(base.BaseInfraOptimScenarioTest):
 
-    # Minimal version required for _create_one_instance_per_host_with_statistic
+    # Minimal version required for _create_one_instance_per_host
     compute_min_microversion = base.NOVA_API_VERSION_CREATE_WITH_HOST
 
     scenarios = [
@@ -84,12 +84,11 @@ class TestExecuteActionsViaActuator(base.BaseInfraOptimScenarioTest):
 
     def _prerequisite_param_for_migrate_action(self):
         # This test requires metrics injection
-        INJECT_METRICS = True
-        created_instances = self._create_instances_per_host_with_statistic(
-            inject=INJECT_METRICS
-        )
+        created_instances = self._create_one_instance_per_host()
         source_node = self.get_host_for_server(created_instances[0]['id'])
         destination_node = self.get_host_other_than(created_instances[0]['id'])
+        for instance in created_instances:
+            self.make_instance_statistic(instance)
 
         parameters = {
             "resource_id": created_instances[0]['id'],
@@ -102,10 +101,10 @@ class TestExecuteActionsViaActuator(base.BaseInfraOptimScenarioTest):
 
     def _prerequisite_param_for_resize_action(self):
         # This test requires metrics injection
-        INJECT_METRICS = True
-        created_instances = self._create_instances_per_host_with_statistic(
-            inject=INJECT_METRICS
-        )
+        created_instances = self._create_one_instance_per_host()
+        for instance in created_instances:
+            self.make_instance_statistic(instance)
+
         instance = created_instances[0]
         current_flavor_name = instance['flavor']['original_name']
 
