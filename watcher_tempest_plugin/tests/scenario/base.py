@@ -477,20 +477,21 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
                 cpu_measures = self._make_measures_host(10, 1)
             self.gnocchi.add_measures(cpu_metric_uuid, cpu_measures)
 
-            # Generate host_ram_usage fake metrics
+            # Generate host_ram_usage fake metrics. Metric is based on
+            # hardware.memory.used which is in KB.
             ram_metric_uuid = res['metrics'][
                 self.GNOCCHI_METRIC_MAP['host_ram_usage']
             ]
             if h['hypervisor_hostname'] in loaded_hosts:
                 mem_measures = self._make_measures_host(
                     10, 1,
-                    min=int(h['memory_mb']) * 0.7,
-                    max=int(h['memory_mb']) * 0.8)
+                    min=int(h['memory_mb']) * 0.7 * 1024,
+                    max=int(h['memory_mb']) * 0.8 * 1024)
             else:
                 mem_measures = self._make_measures_host(
                     10, 1,
-                    min=int(h['memory_mb']) * 0.1,
-                    max=int(h['memory_mb']) * 0.2)
+                    min=int(h['memory_mb']) * 0.1 * 1024,
+                    max=int(h['memory_mb']) * 0.2 * 1024)
             self.gnocchi.add_measures(ram_metric_uuid, mem_measures)
 
     def _show_measures(self, metric_uuid):
@@ -719,12 +720,18 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
                 # simulate 10% of memory load on others
                 # unit is megabytes, total is obtained from hypervisor
                 # no inc_factor as memory is saved as gauge
+                host_labels_ram = {
+                    "instance": instance,
+                    "fqdn": h['hypervisor_hostname'],
+                }
                 load = 0.8 if h['hypervisor_hostname'] in loaded_hosts else 0.1
                 mem_available_mb = int(h['memory_mb'] * (1 - load))
+                # metric is node_memory_MemAvailable_bytes which is in bytes
+                mem_available_bytes = mem_available_mb * 1024 * 1024
                 ram_data = self._generate_prometheus_metrics(
                     self.PROMETHEUS_METRIC_MAP['host_ram_usage'],
-                    labels=host_labels,
-                    start_value=mem_available_mb,
+                    labels=host_labels_ram,
+                    start_value=mem_available_bytes,
                     inc_factor=0)
                 self.prometheus_client.add_measures(ram_data)
 
