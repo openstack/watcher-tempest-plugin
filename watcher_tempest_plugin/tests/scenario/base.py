@@ -67,6 +67,7 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
     PROMETHEUS_METRIC_MAP = dict(
         host_cpu_usage='node_cpu_seconds_total',
         host_ram_usage='node_memory_MemAvailable_bytes',
+        host_ram_total='node_memory_MemTotal_bytes',
         instance_cpu_usage='ceilometer_cpu',
         instance_ram_usage='ceilometer_memory_usage')
 
@@ -589,7 +590,8 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
                                      interval_secs=30,
                                      add_unique_label=True,
                                      inc_factor=0.8,
-                                     start_value=1.0):
+                                     start_value=1.0,
+                                     timestamp=None):
         """Generates multiple samples for a given metric.
 
 
@@ -614,11 +616,11 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
           interval.
         :param start_value: value of the first sample to be
           generated.
+        :param timestamp: timestamp in ms for the most recent
 
         :return: String with all samples for a given metric.
         """
-        # timestamp needs to be in milliseconds
-        ts_now_ms = int(datetime.now().timestamp()*1000)
+        ts_now_ms = timestamp or int(datetime.now().timestamp()*1000)
 
         # NOTE(dviroel): by including a unique label value, we avoid the
         #  'out of order sample' error when pushing multiple
@@ -667,6 +669,7 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
         mem_usage_mb = int(instance['flavor']['ram'] * 0.8)
         ram_data = self._generate_prometheus_metrics(
             self.PROMETHEUS_METRIC_MAP['instance_ram_usage'],
+            metric_type='gauge',
             labels=instance_labels,
             start_value=mem_usage_mb,
             inc_factor=0)
@@ -684,6 +687,9 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
         hypervisors = self.get_hypervisors_setup()
 
         for h in hypervisors:
+            # When doing maths with prometheus, we need to
+            # have all metrics with the same timestamp.
+            timestamp = int(datetime.now().timestamp()*1000)
             instance = self.prometheus_client.prometheus_instances.get(
                 h['hypervisor_hostname'], None)
             if not instance:
@@ -707,33 +713,55 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
                             self.PROMETHEUS_METRIC_MAP['host_cpu_usage'],
                             labels=host_labels,
                             start_value=1.0,
-                            inc_factor=0.0)
+                            inc_factor=0.0,
+                            timestamp=timestamp)
                     else:
                         cpu_data = self._generate_prometheus_metrics(
                             self.PROMETHEUS_METRIC_MAP['host_cpu_usage'],
                             labels=host_labels,
                             start_value=1.0,
-                            inc_factor=1.0)
+                            inc_factor=1.0,
+                            timestamp=timestamp)
                     self.prometheus_client.add_measures(cpu_data)
-                # Generate memory usage data for a hypervisors
-                # simulate 80% of memory usage on loaded_hosts
-                # simulate 10% of memory load on others
-                # unit is megabytes, total is obtained from hypervisor
-                # no inc_factor as memory is saved as gauge
+
                 host_labels_ram = {
                     "instance": instance,
                     "fqdn": h['hypervisor_hostname'],
                 }
+
+                # Generate memory usage data for a hypervisor
+                # simulate 80% of memory usage on loaded_hosts
+                # simulate 10% of memory load on others
+                # unit is megabytes, total is obtained from hypervisor
+                # no inc_factor as memory is saved as gauge
+
                 load = 0.8 if h['hypervisor_hostname'] in loaded_hosts else 0.1
                 mem_available_mb = int(h['memory_mb'] * (1 - load))
                 # metric is node_memory_MemAvailable_bytes which is in bytes
                 mem_available_bytes = mem_available_mb * 1024 * 1024
                 ram_data = self._generate_prometheus_metrics(
                     self.PROMETHEUS_METRIC_MAP['host_ram_usage'],
+                    metric_type='gauge',
                     labels=host_labels_ram,
                     start_value=mem_available_bytes,
-                    inc_factor=0)
+                    inc_factor=0,
+                    timestamp=timestamp)
                 self.prometheus_client.add_measures(ram_data)
+
+                # Generate host total memory data for a hypervisor
+                # unit is megabytes, total is obtained from hypervisor
+                # no inc_factor as memory is saved as gauge
+                mem_total_mb = int(h['memory_mb'])
+                # metric is node_memory_MemTotal_bytes which is in bytes
+                mem_total_bytes = mem_total_mb * 1024 * 1024
+                ram_total_data = self._generate_prometheus_metrics(
+                    self.PROMETHEUS_METRIC_MAP['host_ram_total'],
+                    metric_type='gauge',
+                    labels=host_labels_ram,
+                    start_value=mem_total_bytes,
+                    inc_factor=0,
+                    timestamp=timestamp)
+                self.prometheus_client.add_measures(ram_total_data)
 
     # ### AUDIT TEMPLATES ### #
 
