@@ -10,11 +10,10 @@
         - watcher-tempest-functional
         - watcher-tempest-actuator
         - watcher-tempest-strategies
-        - watcher-tempest-functional-2025-1
         - watcher-prometheus-integration
+        - watcher-tempest-functional-2025-1
         - watcher-tempest-functional-2024-2
         - watcher-tempest-functional-2024-1
-        - watcher-tempest-functional-2023-2
     gate:
       jobs:
         - watcher-tempest-functional
@@ -39,9 +38,3 @@
     parent: watcher-tempest-functional
     nodeset: openstack-single-node-jammy
     override-checkout: stable/2024.1
-
-- job:
-    name: watcher-tempest-functional-2023-2
-    parent: watcher-tempest-functional
-    nodeset: openstack-single-node-jammy
-    override-checkout: stable/2023.2
