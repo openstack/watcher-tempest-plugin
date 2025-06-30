@@ -104,6 +104,7 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
         cls.gnocchi = cls.mgr.gn_client
         cls.placement_client = cls.mgr.placement_client
         cls.prometheus_client = cls.mgr.prometheus_client
+        cls.flavors_client = cls.mgr.flavors_client
 
     def setUp(self):
         super(BaseInfraOptimScenarioTest, self).setUp()
@@ -127,6 +128,17 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
         hypervisors = hypervisors_client.list_hypervisors(
             detail=True)['hypervisors']
         return hypervisors
+
+    @classmethod
+    def get_hypervisor_details(cls, node_name):
+        """Get hypervisor details by node name."""
+        hypervisors = cls.get_hypervisors_setup()
+        for hyp in hypervisors:
+            if hyp['hypervisor_hostname'] == node_name:
+                return hyp
+        raise exceptions.InvalidConfiguration(
+            "Hypervisor %s not found in the list of hypervisors." %
+            node_name)
 
     @classmethod
     def get_compute_nodes_setup(cls):
@@ -262,12 +274,33 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
 
         self.assertEqual(target_host, server_host, msg)
 
-    def _create_one_instance_per_host(self, run_command=None):
+    def _create_custom_flavor(self, ram=512, vcpus=1):
+        """Create a flavor with custom RAM size
+
+        :param ram: RAM in MB to be set for the flavor.
+        :returns: A flavor id
+        """
+
+        flavor_id = self.flavors_client.create_flavor(
+            name=data_utils.rand_name('watcher_flavor'),
+            ram=ram,
+            vcpus=vcpus,
+            disk=1,
+            ephemeral=0,
+            swap=0,
+            rxtx_factor=1.0,
+            is_public=True)['flavor']['id']
+        self.addCleanup(test_utils.call_and_ignore_notfound_exc,
+                        self.flavors_client.delete_flavor, flavor_id)
+        return flavor_id
+
+    def _create_one_instance_per_host(self, flavor=None, run_command=None):
         """Create one instance per compute node
 
         This goes up to the min_compute_nodes threshold so that things don't
         get crazy if you have 1000 compute nodes but set min to 3.
 
+        :param flavor: Flavor Name or ID
         :param run_command: the command you want to run in the new instances
         :returns: A list of instance UUIDs.
         """
@@ -303,11 +336,11 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
             self.assertNotEqual(0, retry)
             # by getting to active state here, this means this has
             # landed on the host in question.
-            instance = self._create_instance(node['host'], run_command)
+            instance = self._create_instance(node['host'], flavor, run_command)
             created_instances.append(instance)
         return created_instances
 
-    def _create_instance(self, host=None, run_command=None):
+    def _create_instance(self, host=None, flavor=None, run_command=None):
         # We enforce the compute node where we create the instance to
         # make sure we have one node on each compute.
         # This requires Nova API version 2.74 or higher.
@@ -328,9 +361,10 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
             script_clean = textwrap.dedent(script).lstrip().encode('utf8')
             script_b64 = base64.b64encode(script_clean)
             kwargs_server['user_data'] = script_b64
+        flavor = flavor if flavor else CONF.compute.flavor_ref
         instance = self.create_server(
             image_id=CONF.compute.image_ref, wait_until='ACTIVE',
-            clients=self.os_admin, validatable=validatable,
+            flavor=flavor, clients=self.os_admin, validatable=validatable,
             validation_resources=validation_resources,
             **kwargs_server)
         # get instance object again as admin
@@ -366,7 +400,8 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
                 default_metric = {
                     "archive_policy_name": "low",
                     "resource_id": body['id'],
-                    "name": metric_name
+                    "name": metric_name,
+                    "unit": "ns"
                 }
                 metric_body = {**default_metric,
                                **kwargs['metrics'][metric_name]}
@@ -379,7 +414,7 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
 
     def _make_measures_host(self, measures_count, time_step, min=10, max=20):
         measures_body = []
-        now = datetime.now(timezone.utc) + timedelta(minutes=2)
+        now = datetime.now(timezone.utc)
         for i in range(0, measures_count):
             dt = now - timedelta(minutes=i * time_step)
             measures_body.append(
@@ -391,7 +426,7 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
     def _make_measures_instance(self, measures_count, time_step,
                                 min=80, max=90, metric_type='cpu'):
         measures_body = []
-        now = datetime.now(timezone.utc) + timedelta(minutes=2)
+        now = datetime.now(timezone.utc)
 
         if metric_type == "cpu":
             final_cpu = (measures_count + 1) * 60 * time_step * 1e9
@@ -500,8 +535,8 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
             if h['hypervisor_hostname'] in loaded_hosts:
                 mem_measures = self._make_measures_host(
                     10, 1,
-                    min=int(h['memory_mb']) * 0.7 * 1024,
-                    max=int(h['memory_mb']) * 0.8 * 1024)
+                    min=int(h['memory_mb']) * 0.8 * 1024,
+                    max=int(h['memory_mb']) * 0.9 * 1024)
             else:
                 mem_measures = self._make_measures_host(
                     10, 1,
@@ -543,10 +578,10 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
             metrics = {
                 self.GNOCCHI_METRIC_MAP["instance_cpu_usage"]: {
                     'archive_policy_name': 'ceilometer-low-rate',
-                    'unit': 'ms'
+                    'unit': 'ns'
                 },
                 self.GNOCCHI_METRIC_MAP["instance_ram_usage"]: {
-                    'archive_policy_name': 'ceilometer-low-rate',
+                    'archive_policy_name': 'ceilometer-low',
                     'unit': 'MB'
                 }
             }
@@ -572,7 +607,7 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
         cpu_metric_uuid = res['metrics'][
             self.GNOCCHI_METRIC_MAP["instance_cpu_usage"]
         ]
-        cpu_measures = self._make_measures_instance(5, 3, metric_type='cpu')
+        cpu_measures = self._make_measures_instance(5, 5, metric_type='cpu')
         self.gnocchi.add_measures(cpu_metric_uuid, cpu_measures)
 
         # Generate ram fake metrics
@@ -581,9 +616,9 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
             self.GNOCCHI_METRIC_MAP["instance_ram_usage"]
         ]
         ram_measures = self._make_measures_instance(
-            5, 3,
-            min=int(flavor[0]['ram']) * 0.7,
-            max=int(flavor[0]['ram']) * 0.8,
+            5, 5,
+            min=int(flavor[0]['ram']) * 0.8,
+            max=int(flavor[0]['ram']) * 0.9,
             metric_type='ram')
         self.gnocchi.add_measures(ram_metric_uuid, ram_measures)
 

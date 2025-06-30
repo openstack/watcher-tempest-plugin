@@ -51,7 +51,6 @@ class TestExecuteWorkloadBalanceStrategy(base.BaseInfraOptimScenarioTest):
                 "Less than 2 compute nodes are enabled, "
                 "skipping multinode tests.")
 
-    @decorators.skip_because(bug='2116875')
     @decorators.attr(type=['strategy', 'workload_balance'])
     @decorators.idempotent_id('64a9293f-0f81-431c-afae-ecabebae53f1')
     def test_execute_workload_balance_strategy_cpu(self):
@@ -60,8 +59,10 @@ class TestExecuteWorkloadBalanceStrategy(base.BaseInfraOptimScenarioTest):
         self.addCleanup(self.wait_delete_instances_from_model)
         self.addCleanup(self.clean_injected_metrics)
         host = self.get_enabled_compute_nodes()[0]['host']
+        hypervisor = self.get_hypervisor_details(host)
         instances = []
-        for _ in range(4):
+        created_instances = 2
+        for _ in range(created_instances):
             instance = self._create_instance(host)
             instances.append(instance)
 
@@ -72,9 +73,14 @@ class TestExecuteWorkloadBalanceStrategy(base.BaseInfraOptimScenarioTest):
             # Inject metrics after the instances are created
             self.make_instance_statistic(instance)
 
+        # Set a threshold for CPU usage
+        # ( <number of vms> - 0.5 ) * (0.8/<vcpus of the compute host>)*100
+        threshold = round(
+            (created_instances - 0.5) * (0.8 / int(hypervisor['vcpus'])) * 100)
+
         audit_parameters = {
             "metrics": "instance_cpu_usage",
-            "threshold": 15,
+            "threshold": threshold,
             "period": 300,
             "granularity": 300}
 
@@ -85,7 +91,6 @@ class TestExecuteWorkloadBalanceStrategy(base.BaseInfraOptimScenarioTest):
         self.execute_strategy(goal_name, strategy_name,
                               expected_actions=['migrate'], **audit_kwargs)
 
-    @decorators.skip_because(bug='2116875')
     @decorators.attr(type=['strategy', 'workload_balance'])
     @decorators.idempotent_id('de4f662a-26b1-4cbe-ba8e-c213bac0a996')
     def test_execute_workload_balance_strategy_ram(self):
@@ -94,9 +99,13 @@ class TestExecuteWorkloadBalanceStrategy(base.BaseInfraOptimScenarioTest):
         self.addCleanup(self.wait_delete_instances_from_model)
         self.addCleanup(self.clean_injected_metrics)
         host = self.get_enabled_compute_nodes()[0]['host']
+        hypervisor = self.get_hypervisor_details(host)
+        # Flavor RAM is set to 15% of the hypervisor memory
+        ram = int(hypervisor['memory_mb'] * 0.15)
+        flavor_id = self._create_custom_flavor(ram=ram)
         instances = []
-        for _ in range(4):
-            instance = self._create_instance(host)
+        for _ in range(2):
+            instance = self._create_instance(host=host, flavor=flavor_id)
             instances.append(instance)
 
         # wait for compute model updates
@@ -108,7 +117,7 @@ class TestExecuteWorkloadBalanceStrategy(base.BaseInfraOptimScenarioTest):
 
         audit_parameters = {
             "metrics": "instance_ram_usage",
-            "threshold": 2.5,
+            "threshold": 18,
             "period": 300,
             "granularity": 300}
 
