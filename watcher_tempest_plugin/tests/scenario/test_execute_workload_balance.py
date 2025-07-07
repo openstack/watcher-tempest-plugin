@@ -57,6 +57,7 @@ class TestExecuteWorkloadBalanceStrategy(base.BaseInfraOptimScenarioTest):
         # This test requires metrics injection
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
+        self.addCleanup(self.clean_injected_metrics)
         host = self.get_enabled_compute_nodes()[0]['host']
         instances = []
         for _ in range(4):
@@ -89,6 +90,7 @@ class TestExecuteWorkloadBalanceStrategy(base.BaseInfraOptimScenarioTest):
         # This test requires metrics injection
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
+        self.addCleanup(self.clean_injected_metrics)
         host = self.get_enabled_compute_nodes()[0]['host']
         instances = []
         for _ in range(4):

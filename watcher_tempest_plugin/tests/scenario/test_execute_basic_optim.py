@@ -71,6 +71,7 @@ class TestExecuteBasicStrategy(base.BaseInfraOptimScenarioTest):
 
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
+        self.addCleanup(self.clean_injected_metrics)
         instances = self._create_one_instance_per_host()
         # wait for compute model updates
         self.wait_for_instances_in_model(instances)

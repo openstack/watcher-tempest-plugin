@@ -416,6 +416,20 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
 
         return measures_body
 
+    def clean_injected_metrics(self):
+        """Delete all injected metrics from datastore.
+
+        This is useful to ensure that the tests are not affected by
+        previously injected metrics.
+        """
+        LOG.debug("Deleting injected metrics from Datastore")
+        if CONF.optimize.datasource == "gnocchi":
+            # TODO(morenod): Add function for deleting injected metrics
+            # from Gnocchi.
+            pass
+        elif CONF.optimize.datasource == "prometheus":
+            self.prometheus_client.delete_series()
+
     def make_host_statistic(self, metrics=dict(), loaded_hosts=[]):
         """Add host metrics to the datasource
 
