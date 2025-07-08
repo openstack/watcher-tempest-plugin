@@ -911,6 +911,11 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
         _, audit = cls.client.show_audit(audit_uuid)
         return audit.get('state') in cls.AUDIT_FINISHED_STATES
 
+    @classmethod
+    def is_audit_ongoing(cls, audit_uuid):
+        _, audit = cls.client.show_audit(audit_uuid)
+        return audit.get('state') == 'ONGOING'
+
     # ### ACTION PLANS ### #
 
     def delete_action_plan(self, action_plan_uuid):
@@ -921,6 +926,10 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
         """
         resp, _ = self.client.delete_action_plan(action_plan_uuid)
         return resp
+
+    def has_action_plans(self, audit_uuid=None):
+        _, action_plans = self.client.list_action_plans(audit_uuid=audit_uuid)
+        return len(action_plans['action_plans']) > 0
 
     def has_action_plan_finished(self, action_plan_uuid):
         _, action_plan = self.client.show_action_plan(action_plan_uuid)
@@ -933,6 +942,14 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
             if action_plan.get('state') not in self.AP_FINISHED_STATES:
                 return False
         return True
+
+    def has_action_plans_recommended(self, audit_uuid=None):
+        _, action_plans = self.client.list_action_plans(audit_uuid=audit_uuid)
+        for ap in action_plans['action_plans']:
+            _, action_plan = self.client.show_action_plan(ap['uuid'])
+            if action_plan.get('state') == 'RECOMMENDED':
+                return True
+        return False
 
     def execute_strategy(self, goal_name, strategy_name,
                          expected_actions=[], **audit_kwargs):

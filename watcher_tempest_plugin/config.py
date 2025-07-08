@@ -127,4 +127,9 @@ OptimizationGroup = [
         help="Upper version of the test target microversion range. "
              "The format is 'X.Y', where 'X' and 'Y' are int values."
     ),
+    cfg.BoolOpt(
+        "run_continuous_audit_tests",
+        default=False,
+        help="Whether or not to run continuous audit scenario tests.",
+    ),
 ]
