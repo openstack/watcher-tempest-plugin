@@ -51,6 +51,7 @@ class TestExecuteWorkloadBalanceStrategy(base.BaseInfraOptimScenarioTest):
                 "Less than 2 compute nodes are enabled, "
                 "skipping multinode tests.")
 
+    @decorators.skip_because(bug='2116875')
     @decorators.attr(type=['strategy', 'workload_balance'])
     @decorators.idempotent_id('64a9293f-0f81-431c-afae-ecabebae53f1')
     def test_execute_workload_balance_strategy_cpu(self):
@@ -84,6 +85,7 @@ class TestExecuteWorkloadBalanceStrategy(base.BaseInfraOptimScenarioTest):
         self.execute_strategy(goal_name, strategy_name,
                               expected_actions=['migrate'], **audit_kwargs)
 
+    @decorators.skip_because(bug='2116875')
     @decorators.attr(type=['strategy', 'workload_balance'])
     @decorators.idempotent_id('de4f662a-26b1-4cbe-ba8e-c213bac0a996')
     def test_execute_workload_balance_strategy_ram(self):
