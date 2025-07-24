@@ -40,6 +40,7 @@ class BaseInfraOptimTest(api_version_utils.BaseMicroversionTest,
                    'FAILED',
                    'SUCCEEDED',
                    'CANCELLED',
+                   'SUPERSEDED',
                    'SUSPENDED')
     # States where the object can only be DELETED (end of its life-cycle)
     FINISHED_STATES = ('FAILED',
