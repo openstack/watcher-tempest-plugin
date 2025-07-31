@@ -18,16 +18,21 @@ import functools
 import time
 
 from tempest import config
+from tempest.lib.common import api_version_utils
 from tempest.lib.common.utils import data_utils
 from tempest.lib.common.utils import test_utils
 from tempest import test
 
 from watcher_tempest_plugin import infra_optim_clients as clients
+from watcher_tempest_plugin.services.infra_optim.v1.json import (
+    api_microversion_fixture
+)
 
 CONF = config.CONF
 
 
-class BaseInfraOptimTest(test.BaseTestCase):
+class BaseInfraOptimTest(api_version_utils.BaseMicroversionTest,
+                         test.BaseTestCase):
     """Base class for Infrastructure Optimization API tests."""
 
     # States where the object is waiting for some event to perform a transition
@@ -48,6 +53,12 @@ class BaseInfraOptimTest(test.BaseTestCase):
         if not CONF.service_available.watcher:
             raise cls.skipException('Watcher support is required')
 
+        api_version_utils.check_skip_with_microversion(
+            cls.min_microversion,
+            cls.max_microversion,
+            CONF.optimize.min_microversion,
+            CONF.optimize.max_microversion)
+
     @classmethod
     def setup_credentials(cls):
         super(BaseInfraOptimTest, cls).setup_credentials()
@@ -58,6 +69,11 @@ class BaseInfraOptimTest(test.BaseTestCase):
         super(BaseInfraOptimTest, cls).setup_clients()
         cls.client = cls.mgr.io_client
         cls.gnocchi = cls.mgr.gn_client
+
+    def setUp(self):
+        super(BaseInfraOptimTest, self).setUp()
+        self.useFixture(api_microversion_fixture.APIMicroversionFixture(
+            optimize_microversion=self.request_microversion))
 
     @classmethod
     def resource_setup(cls):
@@ -70,6 +86,11 @@ class BaseInfraOptimTest(test.BaseTestCase):
         # Set of all created audit UUIDs. We use it to build the list of
         # action plans to delete (including potential orphan one(s))
         cls.created_action_plans_audit_uuids = set()
+
+        cls.request_microversion = (
+            api_version_utils.select_request_microversion(
+                cls.min_microversion,
+                CONF.optimize.min_microversion))
 
     @classmethod
     def resource_cleanup(cls):

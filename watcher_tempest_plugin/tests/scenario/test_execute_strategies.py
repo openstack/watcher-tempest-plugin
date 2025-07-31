@@ -26,6 +26,8 @@ CONF = config.CONF
 class TestExecuteStrategies(base.BaseInfraOptimScenarioTest):
     """Tests for strategies"""
 
+    # Minimal version required for list data models
+    min_microversion = "1.3"
     # Minimal version required for _create_one_instance_per_host
     compute_min_microversion = base.NOVA_API_VERSION_CREATE_WITH_HOST
 

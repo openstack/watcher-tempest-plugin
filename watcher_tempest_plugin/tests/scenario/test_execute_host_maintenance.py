@@ -27,6 +27,8 @@ LOG = log.getLogger(__name__)
 class TestExecuteHostMaintenanceStrategy(base.BaseInfraOptimScenarioTest):
     """Tests for host_maintenance"""
 
+    # Minimal version required for list data models
+    min_microversion = "1.3"
     # Minimal version required for _create_one_instance_per_host
     compute_min_microversion = base.NOVA_API_VERSION_CREATE_WITH_HOST
 

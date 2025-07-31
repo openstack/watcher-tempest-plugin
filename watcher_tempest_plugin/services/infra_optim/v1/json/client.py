@@ -19,7 +19,7 @@ from oslo_utils import uuidutils
 from watcher_tempest_plugin.services import base
 
 
-INFRA_OPTIM_VERSION = '1.4'
+INFRA_OPTIM_VERSION = None
 
 
 class InfraOptimClientJSON(base.BaseClient):

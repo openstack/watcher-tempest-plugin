@@ -115,4 +115,16 @@ OptimizationGroup = [
         help="In real-data test cases, the period of time during which "
              "the load will be executed in seconds."
     ),
+    cfg.StrOpt(
+        "min_microversion",
+        default=None,
+        help="Lower version of the test target microversion range. "
+             "The format is 'X.Y', where 'X' and 'Y' are int values."
+    ),
+    cfg.StrOpt(
+        "max_microversion",
+        default=None,
+        help="Upper version of the test target microversion range. "
+             "The format is 'X.Y', where 'X' and 'Y' are int values."
+    ),
 ]

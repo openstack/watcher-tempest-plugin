@@ -32,12 +32,16 @@ from oslo_log import log
 from tempest.common import waiters
 from tempest import config
 from tempest.lib.common import api_microversion_fixture
+from tempest.lib.common import api_version_utils
 from tempest.lib.common.utils import data_utils
 from tempest.lib.common.utils import test_utils
 from tempest.lib import exceptions
 from tempest.scenario import manager
 
 from watcher_tempest_plugin import infra_optim_clients as clients
+from watcher_tempest_plugin.services.infra_optim.v1.json import (
+    api_microversion_fixture as watcher_microversion_fixture
+)
 
 
 LOG = log.getLogger(__name__)
@@ -53,6 +57,9 @@ NOVA_API_VERSION_CREATE_WITH_HOST = '2.74'
 
 class BaseInfraOptimScenarioTest(manager.ScenarioTest):
     """Base class for Infrastructure Optimization API tests."""
+
+    min_microversion = None
+    max_microversion = manager.LATEST_MICROVERSION
 
     # States where the object is waiting for some event to perform a transition
     IDLE_STATES = ('RECOMMENDED', 'FAILED', 'SUCCEEDED', 'CANCELLED')
@@ -91,6 +98,12 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
         if not CONF.service_available.watcher:
             raise cls.skipException('Watcher support is required')
 
+        api_version_utils.check_skip_with_microversion(
+            cls.min_microversion,
+            cls.max_microversion,
+            CONF.optimize.min_microversion,
+            CONF.optimize.max_microversion)
+
     @classmethod
     def setup_credentials(cls):
         cls._check_network_config()
@@ -111,10 +124,17 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
             compute_microversion=self.compute_request_microversion))
         self.useFixture(api_microversion_fixture.APIMicroversionFixture(
             placement_microversion=CONF.placement.min_microversion))
+        self.useFixture(watcher_microversion_fixture.APIMicroversionFixture(
+            optimize_microversion=self.request_microversion))
 
     @classmethod
     def resource_setup(cls):
         super(BaseInfraOptimScenarioTest, cls).resource_setup()
+
+        cls.request_microversion = (
+            api_version_utils.select_request_microversion(
+                cls.min_microversion,
+                CONF.optimize.min_microversion))
 
     @classmethod
     def resource_cleanup(cls):
