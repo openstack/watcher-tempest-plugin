@@ -53,6 +53,9 @@ CONF = config.CONF
 # Note that it will not affect the version of the Nova API used by
 # Watcher, only the version used by tempest when used from those tests.
 NOVA_API_VERSION_CREATE_WITH_HOST = '2.74'
+# Nova API version that adds 'pinned_availability_zone' to GET /servers/details
+# response.
+NOVA_API_VERSION_SERVER_PINNED_AZ = '2.96'
 
 
 class BaseInfraOptimScenarioTest(manager.ScenarioTest):
@@ -1129,6 +1132,47 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
             model_pairs = [(s['server_uuid'], s['node_hostname'])
                            for s in body.get('context', [])
                            if 'server_uuid' in s and 'node_hostname' in s]
+
+    def wait_for_instances_attributes_in_model(self, instances, attributes_map,
+                                               timeout=300):
+        """Waits until all instances have attributes updated in the model.
+
+        Builds a list of instances that have all attributes updated in the
+        model. Compare with the list of instances provided as argument.
+
+        :param instances: List of instances to wait for.
+        :param attributes_map: Map withattributes and expected values.
+        :param timeout: Timeout in seconds.
+
+        :raises: Exception if attributes were not updated in the model.
+        """
+
+        timeout_end = time.time() + timeout
+
+        _, body = self.client.list_data_models(data_model_type="compute")
+
+        # Get all server_uuid from model that have all attributes updated
+        # according to the attributes_map.
+        model_ids = [
+            s['server_uuid']
+            for s in body.get('context', [])
+            if 'server_uuid' in s and all(
+                s.get(k) == v for k, v in attributes_map.items())]
+
+        instance_ids = [i['id'] for i in instances]
+
+        # Check all instances are in the model list built.
+        while (not set(instance_ids) <= set(model_ids) or not model_ids):
+            time.sleep(15)
+            if time.time() >= timeout_end:
+                raise Exception("Attributes were not updated in the model.")
+
+            _, body = self.client.list_data_models(data_model_type="compute")
+            model_ids = [
+                s['server_uuid']
+                for s in body.get('context', [])
+                if 'server_uuid' in s and all(
+                    s.get(k) == v for k, v in attributes_map.items())]
 
     def wait_delete_instances_from_model(self, timeout=300):
         """Waits until all deleted instaces be removed from model."""
