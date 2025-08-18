@@ -11,6 +11,7 @@
         - watcher-tempest-actuator
         - watcher-tempest-strategies
         - watcher-prometheus-integration
+        - watcher-aetos-integration
         - watcher-tempest-functional-2025-1
         - watcher-tempest-functional-2024-2
         - watcher-tempest-functional-2024-1
@@ -20,6 +21,7 @@
     experimental:
       jobs:
         - watcher-prometheus-integration-realdata
+        - watcher-aetos-integration-realdata
 
 - job:
     name: watcher-tempest-functional-2025-1
