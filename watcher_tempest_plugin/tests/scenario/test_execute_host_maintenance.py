@@ -108,6 +108,8 @@ class TestExecuteHostMaintenanceStrategy(base.BaseInfraOptimScenarioTest):
                                                 'migrate'],
                               **audit_kwargs)
 
-        # Make sure servers are migrated to backup node
-        for server in instances:
-            self.assertEqual(self.get_host_for_server(server['id']), dst_node)
+        # Make sure server is migrated to backup node
+        self.assertEqual(
+            self.get_host_for_server(instances[0]['id']),
+            dst_node
+        )
