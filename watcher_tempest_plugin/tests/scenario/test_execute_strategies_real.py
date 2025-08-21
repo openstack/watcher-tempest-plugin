@@ -35,9 +35,10 @@ class TestRealExecuteStrategies(base.BaseInfraOptimScenarioTest):
     COMMANDS_CREATE_LOAD = dict(
         instance_cpu_usage='nohup dd if=/dev/random of=/dev/null &',
         instance_ram_usage=(
-            "yes | head -c $(($(grep MemAvailable /proc/meminfo | "
-            "awk '{print $2}')*9/10))k >/run/x"
-        )
+            "sudo sh -c \"mkdir -p /mnt/tmpfs && "
+            "mount -t tmpfs -o size=$(($(grep MemTotal /proc/meminfo | "
+            "tr -s ' ' | cut -d' ' -f2)*9/10))k tmpfs /mnt/tmpfs\" && "
+            "yes > /mnt/tmpfs/x")
     )
 
     @classmethod
@@ -70,8 +71,10 @@ class TestRealExecuteStrategies(base.BaseInfraOptimScenarioTest):
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
         host = self.get_enabled_compute_nodes()[0]['host']
+        hypervisor = self.get_hypervisor_details(host)
         instances = []
-        for _ in range(4):
+        created_instances = 2
+        for _ in range(created_instances):
             instance = self._create_instance(
                 host=host,
                 run_command=self.COMMANDS_CREATE_LOAD['instance_cpu_usage'])
@@ -83,9 +86,14 @@ class TestRealExecuteStrategies(base.BaseInfraOptimScenarioTest):
         # This is the time that we want to generate metrics
         time.sleep(CONF.optimize.real_workload_period)
 
+        # Set a threshold for CPU usage
+        # ( <number of vms> - 0.5 ) * (0.8/<vcpus of the compute host>)*100
+        threshold = round(
+            (created_instances - 0.5) * (0.8 / int(hypervisor['vcpus'])) * 100)
+
         audit_parameters = {
             "metrics": "instance_cpu_usage",
-            "threshold": 20,
+            "threshold": threshold,
             "period": CONF.optimize.real_workload_period,
             "granularity": 300}
 
@@ -103,10 +111,15 @@ class TestRealExecuteStrategies(base.BaseInfraOptimScenarioTest):
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
         host = self.get_enabled_compute_nodes()[0]['host']
+        hypervisor = self.get_hypervisor_details(host)
+        # Flavor RAM is set to 15% of the hypervisor memory
+        ram = int(hypervisor['memory_mb'] * 0.15)
+        flavor_id = self._create_custom_flavor(ram=ram)
         instances = []
-        for _ in range(4):
+        for _ in range(2):
             instance = self._create_instance(
                 host=host,
+                flavor=flavor_id,
                 run_command=self.COMMANDS_CREATE_LOAD['instance_ram_usage'])
             instances.append(instance)
 
@@ -118,7 +131,7 @@ class TestRealExecuteStrategies(base.BaseInfraOptimScenarioTest):
 
         audit_parameters = {
             "metrics": "instance_ram_usage",
-            "threshold": 2,
+            "threshold": 18,
             "period": CONF.optimize.real_workload_period,
             "granularity": 300}
 
