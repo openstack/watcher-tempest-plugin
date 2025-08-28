@@ -279,6 +279,16 @@ class InfraOptimClientJSON(base.BaseClient):
         """
         return self._show_request('/actions', action_uuid)
 
+    @base.handle_errors
+    def update_action(self, action_uuid, patch):
+        """Update the specified action
+
+        :param action_uuid: The unique identifier of the action
+        :param patch: List of dicts representing json patches.
+        :return: Tuple with the server response and the updated action_plan
+        """
+        return self._patch_request('/actions', action_uuid, patch)
+
     # ### STRATEGIES ### #
 
     @base.handle_errors
