@@ -43,19 +43,19 @@ class TestRealExecuteStrategies(base.BaseInfraOptimScenarioTest):
 
     @classmethod
     def skip_checks(cls):
-        super(TestRealExecuteStrategies, cls).skip_checks()
+        super().skip_checks()
         if not CONF.network_feature_enabled.floating_ips:
             raise cls.skipException(
                 "network_feature_enabled.floating_ips option must be enabled")
-
-    @classmethod
-    def resource_setup(cls):
-        super(TestRealExecuteStrategies, cls).resource_setup()
         if CONF.compute.min_compute_nodes < 2:
             raise cls.skipException(
                 "Less than 2 compute nodes, skipping multinode tests.")
         if not CONF.compute_feature_enabled.live_migration:
             raise cls.skipException("Live migration is not enabled")
+
+    @classmethod
+    def resource_setup(cls):
+        super().resource_setup()
 
         cls.wait_for_compute_node_setup()
         enabled_compute_nodes = cls.get_enabled_compute_nodes()
@@ -97,12 +97,21 @@ class TestRealExecuteStrategies(base.BaseInfraOptimScenarioTest):
             "period": CONF.optimize.real_workload_period,
             "granularity": 300}
 
-        goal_name = "workload_balancing"
-        strategy_name = "workload_balance"
         audit_kwargs = {"parameters": audit_parameters}
 
-        self.execute_strategy(goal_name, strategy_name,
-                              expected_actions=['migrate'], **audit_kwargs)
+        audit_template = self.create_audit_template_for_strategy(
+            goal_name="workload_balancing", strategy_name="workload_balance")
+
+        audit = self.create_audit_and_wait(
+            audit_template['uuid'], **audit_kwargs)
+
+        action_plan, _ = self.get_action_plan_and_validate_actions(
+            audit['uuid'], ['migrate'])
+
+        if action_plan['state'] in ('SUPERSEDED', 'SUCCEEDED'):
+            return
+
+        self.execute_action_plan_and_validate_states(action_plan['uuid'])
 
     @decorators.attr(type=['slow', 'real_load', 'ram'])
     @decorators.idempotent_id('f1b8a0c4-2d3e-4a5b-8f7c-6d9e5f2a0b1c')
@@ -135,12 +144,21 @@ class TestRealExecuteStrategies(base.BaseInfraOptimScenarioTest):
             "period": CONF.optimize.real_workload_period,
             "granularity": 300}
 
-        goal_name = "workload_balancing"
-        strategy_name = "workload_balance"
         audit_kwargs = {"parameters": audit_parameters}
 
-        self.execute_strategy(goal_name, strategy_name,
-                              expected_actions=['migrate'], **audit_kwargs)
+        audit_template = self.create_audit_template_for_strategy(
+            goal_name="workload_balancing", strategy_name="workload_balance")
+
+        audit = self.create_audit_and_wait(
+            audit_template['uuid'], **audit_kwargs)
+
+        action_plan, _ = self.get_action_plan_and_validate_actions(
+            audit['uuid'], ['migrate'])
+
+        if action_plan['state'] in ('SUPERSEDED', 'SUCCEEDED'):
+            return
+
+        self.execute_action_plan_and_validate_states(action_plan['uuid'])
 
     @decorators.idempotent_id('95c7f20b-cd6e-4763-b1be-9a6ac7b5331c')
     @decorators.attr(type=['slow', 'real_load'])
@@ -171,9 +189,19 @@ class TestRealExecuteStrategies(base.BaseInfraOptimScenarioTest):
             "granularity": 30,
             "aggregation_method": {"instance": "mean", "compute_node": "mean"}}
 
-        goal_name = "workload_balancing"
-        strategy_name = "workload_stabilization"
         audit_kwargs = {"parameters": audit_parameters}
 
-        self.execute_strategy(goal_name, strategy_name,
-                              expected_actions=['migrate'], **audit_kwargs)
+        audit_template = self.create_audit_template_for_strategy(
+            goal_name="workload_balancing",
+            strategy_name="workload_stabilization")
+
+        audit = self.create_audit_and_wait(
+            audit_template['uuid'], **audit_kwargs)
+
+        action_plan, _ = self.get_action_plan_and_validate_actions(
+            audit['uuid'], ['migrate'])
+
+        if action_plan['state'] in ('SUPERSEDED', 'SUCCEEDED'):
+            return
+
+        self.execute_action_plan_and_validate_states(action_plan['uuid'])

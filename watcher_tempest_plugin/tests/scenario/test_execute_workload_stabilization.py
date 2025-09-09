@@ -29,6 +29,9 @@ class TestExecuteWorkloadStabilizationStrategy(
     # Minimal version required for _create_one_instance_per_host
     compute_min_microversion = base.NOVA_API_VERSION_CREATE_WITH_HOST
 
+    GOAL = "workload_balancing"
+    STRATEGY = "workload_stabilization"
+
     @classmethod
     def skip_checks(cls):
         super().skip_checks()
@@ -69,6 +72,8 @@ class TestExecuteWorkloadStabilizationStrategy(
         for instance in instances:
             self.make_instance_statistic(instance)
 
+        audit_template = self.create_audit_template_for_strategy()
+
         audit_parameters = {
             "metrics": ["instance_cpu_usage"],
             "thresholds": {"instance_cpu_usage": 0.05},
@@ -78,12 +83,20 @@ class TestExecuteWorkloadStabilizationStrategy(
             "granularity": 300,
             "aggregation_method": {"instance": "mean", "compute_node": "mean"}}
 
-        goal_name = "workload_balancing"
-        strategy_name = "workload_stabilization"
         audit_kwargs = {"parameters": audit_parameters}
 
-        self.execute_strategy(goal_name, strategy_name,
-                              expected_actions=['migrate'], **audit_kwargs)
+        audit = self.create_audit_and_wait(
+            audit_template['uuid'], **audit_kwargs)
+
+        action_plan, _ = self.get_action_plan_and_validate_actions(
+            audit['uuid'], expected_action_types=['migrate'])
+
+        if action_plan['state'] in ('SUPERSEDED', 'SUCCEEDED'):
+            # This means the action plan is superseded so we cannot trigger it,
+            # or it is empty.
+            return
+
+        self.execute_action_plan_and_validate_states(action_plan['uuid'])
 
     @decorators.attr(type=['strategy', 'workload_stabilization'])
     @decorators.idempotent_id('4988b894-b237-4ebc-9af1-ecf1f9ea734e')
@@ -106,14 +119,23 @@ class TestExecuteWorkloadStabilizationStrategy(
             # Inject metrics after the instances are created
             self.make_instance_statistic(instance)
 
+        audit_template = self.create_audit_template_for_strategy()
+
         audit_parameters = {
             "metrics": ["instance_ram_usage"],
             "thresholds": {"instance_ram_usage": 0.05},
             "periods": {"instance": 400, "compute_node": 300}}
-
-        goal_name = "workload_balancing"
-        strategy_name = "workload_stabilization"
         audit_kwargs = {"parameters": audit_parameters}
 
-        self.execute_strategy(goal_name, strategy_name,
-                              expected_actions=['migrate'], **audit_kwargs)
+        audit = self.create_audit_and_wait(
+            audit_template['uuid'], **audit_kwargs)
+
+        action_plan, _ = self.get_action_plan_and_validate_actions(
+            audit['uuid'], expected_action_types=['migrate'])
+
+        if action_plan['state'] in ('SUPERSEDED', 'SUCCEEDED'):
+            # This means the action plan is superseded so we cannot trigger it,
+            # or it is empty.
+            return
+
+        self.execute_action_plan_and_validate_states(action_plan['uuid'])

@@ -33,19 +33,20 @@ class TestExecuteHostMaintenanceStrategy(base.BaseInfraOptimScenarioTest):
     compute_min_microversion = base.NOVA_API_VERSION_CREATE_WITH_HOST
 
     GOAL = "cluster_maintaining"
+    STRATEGY = "host_maintenance"
 
     @classmethod
     def skip_checks(cls):
-        super(TestExecuteHostMaintenanceStrategy, cls).skip_checks()
-
-    @classmethod
-    def resource_setup(cls):
-        super(TestExecuteHostMaintenanceStrategy, cls).resource_setup()
+        super().skip_checks()
         if CONF.compute.min_compute_nodes < 2:
             raise cls.skipException(
                 "Less than 2 compute nodes, skipping multinode tests.")
         if not CONF.compute_feature_enabled.live_migration:
             raise cls.skipException("Live migration is not enabled")
+
+    @classmethod
+    def resource_setup(cls):
+        super().resource_setup()
 
         enabled_compute_nodes = cls.get_enabled_compute_nodes()
         cls.wait_for_compute_node_setup()
@@ -68,17 +69,23 @@ class TestExecuteHostMaintenanceStrategy(base.BaseInfraOptimScenarioTest):
 
         src_node = self.get_host_for_server(instances[0]['id'])
 
-        goal_name = "cluster_maintaining"
-        strategy_name = "host_maintenance"
         audit_kwargs = {
             "parameters": {
                 "maintenance_node": src_node
             }
         }
-        self.execute_strategy(goal_name, strategy_name,
-                              expected_actions=['change_nova_service_state',
-                                                'migrate'],
-                              **audit_kwargs)
+        audit_template = self.create_audit_template_for_strategy()
+
+        audit = self.create_audit_and_wait(
+            audit_template['uuid'], **audit_kwargs)
+
+        action_plan, _ = self.get_action_plan_and_validate_actions(
+            audit['uuid'], ['change_nova_service_state', 'migrate'])
+
+        if action_plan['state'] in ('SUPERSEDED', 'SUCCEEDED'):
+            return
+
+        self.execute_action_plan_and_validate_states(action_plan['uuid'])
 
     @decorators.idempotent_id('cc5a0f1b-e8d2-4813-b012-874982d15d06')
     @decorators.attr(type=['strategy', 'host_maintenance'])
@@ -94,8 +101,6 @@ class TestExecuteHostMaintenanceStrategy(base.BaseInfraOptimScenarioTest):
         src_node = self.get_host_for_server(instances[0]['id'])
         dst_node = self.get_host_other_than(instances[0]['id'])
 
-        goal_name = "cluster_maintaining"
-        strategy_name = "host_maintenance"
         audit_kwargs = {
             "parameters": {
                 "maintenance_node": src_node,
@@ -103,10 +108,18 @@ class TestExecuteHostMaintenanceStrategy(base.BaseInfraOptimScenarioTest):
             }
         }
 
-        self.execute_strategy(goal_name, strategy_name,
-                              expected_actions=['change_nova_service_state',
-                                                'migrate'],
-                              **audit_kwargs)
+        audit_template = self.create_audit_template_for_strategy()
+
+        audit = self.create_audit_and_wait(
+            audit_template['uuid'], **audit_kwargs)
+
+        action_plan, _ = self.get_action_plan_and_validate_actions(
+            audit['uuid'], ['change_nova_service_state', 'migrate'])
+
+        if action_plan['state'] in ('SUPERSEDED', 'SUCCEEDED'):
+            return
+
+        self.execute_action_plan_and_validate_states(action_plan['uuid'])
 
         # Make sure server is migrated to backup node
         self.assertEqual(
