@@ -63,7 +63,6 @@ class TestExecuteStorageCapacityBalanceStrategy(
         action_plan, _ = self.get_action_plan_and_validate_actions(
             audit['uuid'])
 
-        if action_plan['state'] in ('SUPERSEDED', 'SUCCEEDED'):
-            return
+        self.assertEqual("RECOMMENDED", action_plan['state'])
 
         self.execute_action_plan_and_validate_states(action_plan['uuid'])

@@ -68,10 +68,7 @@ class TestExecuteNodeResourceConsolidationStrategy(
         action_plan, _ = self.get_action_plan_and_validate_actions(
             audit['uuid'], ['change_nova_service_state', 'migrate'])
 
-        if action_plan['state'] in ('SUPERSEDED', 'SUCCEEDED'):
-            # This means the action plan is superseded so we cannot trigger it,
-            # or it is empty.
-            return
+        self.assertEqual("RECOMMENDED", action_plan['state'])
 
         self.execute_action_plan_and_validate_states(action_plan['uuid'])
 
@@ -100,9 +97,6 @@ class TestExecuteNodeResourceConsolidationStrategy(
         action_plan, _ = self.get_action_plan_and_validate_actions(
             audit['uuid'], ['migrate'])
 
-        if action_plan['state'] in ('SUPERSEDED', 'SUCCEEDED'):
-            # This means the action plan is superseded so we cannot trigger it,
-            # or it is empty.
-            return
+        self.assertEqual("RECOMMENDED", action_plan['state'])
 
         self.execute_action_plan_and_validate_states(action_plan['uuid'])
