@@ -12,6 +12,7 @@
         - watcher-tempest-strategies
         - watcher-prometheus-integration
         - watcher-aetos-integration
+        - watcher-tempest-functional-2025-2
         - watcher-tempest-functional-2025-1
         - watcher-tempest-functional-2024-2
         - watcher-tempest-functional-2024-1
@@ -22,6 +23,12 @@
       jobs:
         - watcher-prometheus-integration-realdata
         - watcher-aetos-integration-realdata
+
+- job:
+    name: watcher-tempest-functional-2025-2
+    parent: watcher-tempest-functional
+    nodeset: openstack-single-node-noble
+    override-checkout: stable/2025.2
 
 - job:
     name: watcher-tempest-functional-2025-1
