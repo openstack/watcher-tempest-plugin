@@ -15,10 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import functools
-
 from tempest import config
-from tempest.lib.common.utils import test_utils
 from tempest.lib import decorators
 
 from watcher_tempest_plugin.tests.scenario import base
@@ -34,7 +31,8 @@ class TestExecuteBasicStrategy(base.BaseInfraOptimScenarioTest):
     # Minimal version required for _create_one_instance_per_host
     compute_min_microversion = base.NOVA_API_VERSION_CREATE_WITH_HOST
 
-    GOAL_NAME = "server_consolidation"
+    GOAL = "server_consolidation"
+    STRATEGY = "basic"
 
     @classmethod
     def skip_checks(cls):
@@ -58,8 +56,9 @@ class TestExecuteBasicStrategy(base.BaseInfraOptimScenarioTest):
                 "Less than 2 compute nodes are enabled, "
                 "skipping multinode tests.")
 
-    @decorators.idempotent_id('e6fd7f87-abef-4ef3-8b52-134e22aac2ee')
-    def test_execute_basic_action_plan(self):
+    @decorators.attr(type=['strategy', 'basic'])
+    @decorators.idempotent_id('62766a61-dfc4-478c-b80b-86d871227e67')
+    def test_execute_basic_strategy(self):
         """Execute an action plan based on the BASIC strategy
 
         - create an audit template with the basic strategy
@@ -68,9 +67,6 @@ class TestExecuteBasicStrategy(base.BaseInfraOptimScenarioTest):
         - run the action plan
         - get results and make sure it succeeded
         """
-
-        # This test requires metrics injection
-
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
         self.addCleanup(self.clean_injected_metrics)
@@ -81,68 +77,13 @@ class TestExecuteBasicStrategy(base.BaseInfraOptimScenarioTest):
         for instance in instances:
             self.make_instance_statistic(instance)
 
-        _, goal = self.client.show_goal(self.GOAL_NAME)
-        _, strategy = self.client.show_strategy("basic")
-        _, audit_template = self.create_audit_template(
-            goal['uuid'], strategy=strategy['uuid'])
-
-        self.assertTrue(test_utils.call_until_true(
-            func=functools.partial(
-                self.has_action_plans_finished),
-            duration=600,
-            sleep_for=2
-        ))
-
-        _, audit = self.create_audit(
-            audit_template['uuid'],
-            parameters={
+        audit_kwargs = {
+            "parameters": {
                 "granularity": 300,
-                "period": 72000,
+                "period": 300,
                 "aggregation_method": {"instance": "mean",
                                        "compute_node": "mean"}
             }
-        )
+        }
 
-        try:
-            self.assertTrue(test_utils.call_until_true(
-                func=functools.partial(
-                    self.has_audit_finished, audit['uuid']),
-                duration=600,
-                sleep_for=2
-            ))
-        except ValueError:
-            self.fail("The audit has failed!")
-
-        _, finished_audit = self.client.show_audit(audit['uuid'])
-        if finished_audit.get('state') in ('FAILED', 'CANCELLED', 'SUSPENDED'):
-            self.fail("The audit ended in unexpected state: %s!"
-                      % finished_audit.get('state'))
-
-        _, action_plans = self.client.list_action_plans(
-            audit_uuid=audit['uuid'])
-        action_plan = action_plans['action_plans'][0]
-
-        _, action_plan = self.client.show_action_plan(action_plan['uuid'])
-
-        if action_plan['state'] in ('SUPERSEDED', 'SUCCEEDED'):
-            # This means the action plan is superseded so we cannot trigger it,
-            # or it is empty.
-            return
-
-        # Execute the action by changing its state to PENDING
-        _, updated_ap = self.client.start_action_plan(action_plan['uuid'])
-
-        self.assertTrue(test_utils.call_until_true(
-            func=functools.partial(
-                self.has_action_plan_finished, action_plan['uuid']),
-            duration=600,
-            sleep_for=2
-        ))
-        _, finished_ap = self.client.show_action_plan(action_plan['uuid'])
-        _, action_list = self.client.list_actions(
-            action_plan_uuid=finished_ap["uuid"])
-        self.assertIn(updated_ap['state'], ('PENDING', 'ONGOING'))
-        self.assertIn(finished_ap['state'], ('SUCCEEDED', 'SUPERSEDED'))
-
-        for action in action_list['actions']:
-            self.assertEqual('SUCCEEDED', action.get('state'))
+        self.execute_strategy(self.GOAL, self.STRATEGY, **audit_kwargs)
