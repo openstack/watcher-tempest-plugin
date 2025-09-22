@@ -21,8 +21,8 @@ CONF = config.CONF
 LOG = log.getLogger(__name__)
 
 
-class TestExecuteZoneMigrationStrategy(base.BaseInfraOptimScenarioTest):
-    """Tests for action plans"""
+class TestZoneMigrationStrategyBase(base.BaseInfraOptimScenarioTest):
+    """Base class for ZoneMigration tests"""
 
     # Minimal version required for list data models
     min_microversion = "1.3"
@@ -35,11 +35,11 @@ class TestExecuteZoneMigrationStrategy(base.BaseInfraOptimScenarioTest):
 
     @classmethod
     def skip_checks(cls):
-        super(TestExecuteZoneMigrationStrategy, cls).skip_checks()
+        super(TestZoneMigrationStrategyBase, cls).skip_checks()
 
     @classmethod
     def resource_setup(cls):
-        super(TestExecuteZoneMigrationStrategy, cls).resource_setup()
+        super(TestZoneMigrationStrategyBase, cls).resource_setup()
         if CONF.compute.min_compute_nodes < 2:
             raise cls.skipException(
                 "Less than 2 compute nodes, skipping multinode tests.")
@@ -53,6 +53,10 @@ class TestExecuteZoneMigrationStrategy(base.BaseInfraOptimScenarioTest):
             raise cls.skipException(
                 "Less than 2 compute nodes are enabled, "
                 "skipping multinode tests.")
+
+
+class TestExecuteZoneMigrationStrategy(TestZoneMigrationStrategyBase):
+    """Tests for action plans"""
 
     @decorators.idempotent_id('2119b69f-1cbd-4874-a82e-fceec093ebbb')
     @decorators.attr(type=['strategy', 'zone_migration'])
@@ -104,3 +108,87 @@ class TestExecuteZoneMigrationStrategy(base.BaseInfraOptimScenarioTest):
         self.execute_strategy(goal_name, strategy_name,
                               expected_actions=['migrate'],
                               **audit_kwargs)
+
+
+class TestExecuteZoneMigrationStrategyVolume(TestZoneMigrationStrategyBase):
+
+    @classmethod
+    def skip_checks(cls):
+        super(TestExecuteZoneMigrationStrategyVolume, cls).skip_checks()
+        if not CONF.service_available.cinder:
+            raise cls.skipException("Cinder is not available")
+
+    def get_host_for_volume(self, volume_id):
+        """Gets host of volume"""
+
+        volume_details = self.os_admin.volumes_client_latest.show_volume(
+            volume_id
+            )
+        return volume_details['volume']['os-vol-host-attr:host']
+
+    def get_type_for_volume(self, volume_id):
+        """Gets volume type"""
+
+        volume_details = self.os_admin.volumes_client_latest.show_volume(
+            volume_id
+            )
+        return volume_details['volume']['volume_type']
+
+    @decorators.attr(type=['strategy', 'zone_migration', 'volume_migration'])
+    @decorators.idempotent_id('f8f4d551-d892-4111-ab92-5b6b5523e5dc')
+    def test_execute_zone_migration_volume_retype(self):
+        self.addCleanup(self.rollback_compute_nodes_status)
+        self.addCleanup(self.wait_delete_instances_from_model)
+
+        # create second volume type
+        volume_type = self.create_volume_type()
+
+        # create a free volume
+        volume = self.create_volume(
+            name="free_volume_retype",
+        )
+        src_type = volume['volume_type']
+
+        # create a volume and attach it to an instance
+        instance = self.create_server(
+            image_id=CONF.compute.image_ref, wait_until='ACTIVE',
+            clients=self.os_admin)
+        volume2 = self.create_volume(
+            name="attached_volume_retype",
+            )
+        self.nova_volume_attach(
+            instance, volume2,
+            servers_client=self.os_admin.servers_client)
+        # wait for compute model updates
+        self.wait_for_instances_in_model([instance])
+
+        src_pools = {
+            self.get_host_for_volume(vol['id']) for vol in [volume, volume2]
+            }
+
+        audit_parameters = {
+            "storage_pools": [
+                {"src_pool": src_pool, "src_type": src_type,
+                 "dst_type": volume_type['name']}
+                for src_pool in src_pools
+                ]
+            }
+
+        goal_name = "hardware_maintenance"
+        strategy_name = "zone_migration"
+        audit_kwargs = {"parameters": audit_parameters}
+
+        LOG.debug("Executing strategy")
+        self.execute_strategy(goal_name, strategy_name,
+                              expected_actions=['volume_migrate'],
+                              **audit_kwargs)
+
+        # check that the available volume was retyped
+        self.assertEqual(
+            self.get_type_for_volume(volume['id']),
+            volume_type['name']
+        )
+        self.assertEqual(
+            self.get_type_for_volume(volume2['id']),
+            volume_type['name']
+        )
