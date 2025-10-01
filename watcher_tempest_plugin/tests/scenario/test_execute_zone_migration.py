@@ -167,6 +167,29 @@ class TestExecuteZoneMigrationStrategyVolume(TestZoneMigrationStrategyBase):
                 f"test volume migration, {len(pools)} found"
             )
 
+    def calculate_dst_pools(self, src_pool1, src_pool2):
+        """Check which should be the destination pool of the volumes
+
+        Calculate which should be the destination pool for each volume
+        according to where they were scheduled.
+        """
+        if src_pool1 == src_pool2:
+            # if both volumes are scheduled in the same storage host we only
+            # need one entry in the input parameters, it's enough picking one
+            # pool that is different than the source pool
+            all_pools = self.get_pool_names()
+            other_pools = all_pools - {src_pool1}
+            if not other_pools:
+                self.fail(
+                    "could not find a destination pool for volumes "
+                    f"in {src_pool1}"
+                )
+            dst_pool1 = dst_pool2 = other_pools.pop()
+        else:
+            dst_pool1 = src_pool2
+            dst_pool2 = src_pool1
+        return dst_pool1, dst_pool2
+
     @decorators.attr(type=['strategy', 'zone_migration', 'volume_migration'])
     @decorators.idempotent_id('f8f4d551-d892-4111-ab92-5b6b5523e5dc')
     def test_execute_zone_migration_volume_retype(self):
@@ -235,6 +258,8 @@ class TestExecuteZoneMigrationStrategyVolume(TestZoneMigrationStrategyBase):
     @decorators.attr(type=['strategy', 'zone_migration', 'volume_migration'])
     @decorators.idempotent_id('2287000d-6f0e-4275-8741-cfeb38090307')
     def test_execute_zone_migration_volume_migrate(self):
+        """Test zone migration strategy with volume migrations."""
+
         # check that there are multiple cinder pools configured
         # to be able to test migrations between them
         self.check_multiple_pools()
@@ -267,49 +292,31 @@ class TestExecuteZoneMigrationStrategyVolume(TestZoneMigrationStrategyBase):
 
         src_pool_free_volume = self.get_host_for_volume(free_volume['id'])
         src_pool_vm_volume = self.get_host_for_volume(vm_volume['id'])
-        if src_pool_free_volume == src_pool_vm_volume:
-            # if both volumes are scheduled in the same storage host we only
-            # need one entry in the input parameters, it's enough picking one
-            # pool that is different than the source pool
-            all_pools = self.get_pool_names()
-            other_pools = all_pools - {src_pool_free_volume}
-            if not other_pools:
-                self.fail(
-                    "could not find a destination pool for volumes "
-                    f"in {src_pool_free_volume}"
-                )
-            dst_pool_free_volume = dst_pool_vm_volume = other_pools.pop()
-            audit_parameters = {
-                'storage_pools': [
-                    {
-                        'src_pool': src_pool_free_volume,
-                        'src_type': volume_type['name'],
-                        'dst_pool': dst_pool_free_volume
-                    }
-                ]
-            }
-        else:
+        dst_pool_free_volume, dst_pool_vm_volume = self.calculate_dst_pools(
+            src_pool_free_volume, src_pool_vm_volume
+        )
+        audit_parameters = {
+            'storage_pools': [
+                {
+                    'src_pool': src_pool_free_volume,
+                    'src_type': volume_type['name'],
+                    'dst_pool': dst_pool_free_volume
+                }
+            ]
+        }
+        if dst_pool_free_volume != dst_pool_vm_volume:
             # if the two volumes are scheduled in different hosts, we need to
             # add both source hosts to the input parameters. Each volume is
             # then migrated to the other's source pool and the 'src_type'
             # parameter is set to the volume type created in the test to ensure
             # no other volumes are migrated
-            dst_pool_free_volume = src_pool_vm_volume
-            dst_pool_vm_volume = src_pool_free_volume
-            audit_parameters = {
-                'storage_pools': [
-                    {
-                        'src_pool': src_pool_free_volume,
-                        'src_type': volume_type['name'],
-                        'dst_pool': dst_pool_free_volume
-                    },
-                    {
-                        'src_pool': src_pool_vm_volume,
-                        'src_type': volume_type['name'],
-                        'dst_pool': dst_pool_vm_volume
-                    }
-                ]
-            }
+            audit_parameters['storage_pools'].append(
+                {
+                    'src_pool': src_pool_vm_volume,
+                    'src_type': volume_type['name'],
+                    'dst_pool': dst_pool_vm_volume
+                }
+            )
 
         audit_kwargs = {'parameters': audit_parameters}
 
@@ -332,3 +339,99 @@ class TestExecuteZoneMigrationStrategyVolume(TestZoneMigrationStrategyBase):
         vm_volume_host = self.get_host_for_volume(vm_volume['id'])
         self.assertEqual(vm_volume_host, dst_pool_vm_volume)
         self.assertNotEqual(vm_volume_host, src_pool_vm_volume)
+
+    @decorators.attr(type=['strategy', 'zone_migration', 'volume_migration'])
+    @decorators.idempotent_id('9ceff861-d6cd-4a88-8a8f-0a5d659b7b38')
+    def test_execute_zone_migration_with_volume_and_compute_migration(self):
+        """Test zone migration strategy with volume and compute migrations."""
+
+        # check that there are multiple cinder pools configured
+        # to be able to test migrations between them
+        self.check_multiple_pools()
+
+        self.check_min_enabled_compute_nodes(2)
+        self.addCleanup(self.wait_delete_instances_from_model)
+
+        volume_type = self.create_volume_type()
+
+        # create a free volume
+        free_volume = self.create_volume(
+            name='free_volume_migrate', volume_type=volume_type['name']
+        )
+
+        # create a volume and attach it to an instance
+        instance = self.create_server(
+            image_id=CONF.compute.image_ref,
+            wait_until='SSHABLE',
+            clients=self.os_primary,
+        )
+
+        vm_volume = self.create_volume(
+            name='attached_volume_migrate', volume_type=volume_type['name']
+        )
+        self.nova_volume_attach(
+            instance, vm_volume, servers_client=self.os_primary.servers_client
+        )
+        # wait for compute model updates
+        self.wait_for_instances_in_model([instance])
+
+        src_pool_free_volume = self.get_host_for_volume(free_volume['id'])
+        src_pool_vm_volume = self.get_host_for_volume(vm_volume['id'])
+        dst_pool_free_volume, dst_pool_vm_volume = self.calculate_dst_pools(
+            src_pool_free_volume, src_pool_vm_volume
+        )
+        audit_parameters = {
+            'storage_pools': [
+                {
+                    'src_pool': src_pool_free_volume,
+                    'src_type': volume_type['name'],
+                    'dst_pool': dst_pool_free_volume
+                }
+            ]
+        }
+        if dst_pool_free_volume != dst_pool_vm_volume:
+            # if the two volumes are scheduled in different hosts, we need to
+            # add both source hosts to the input parameters. Each volume is
+            # then migrated to the other's source pool and the 'src_type'
+            # parameter is set to the volume type created in the test to ensure
+            # no other volumes are migrated
+            audit_parameters['storage_pools'].append(
+                {
+                    'src_pool': src_pool_vm_volume,
+                    'src_type': volume_type['name'],
+                    'dst_pool': dst_pool_vm_volume
+                }
+            )
+
+        src_node = self.get_host_for_server(instance['id'])
+        dst_node = self.get_host_other_than(instance['id'])
+        audit_parameters['compute_nodes'] = [
+            {'src_node': src_node, 'dst_node': dst_node}
+        ]
+
+        audit_kwargs = {'parameters': audit_parameters}
+
+        audit_template = self.create_audit_template_for_strategy()
+
+        audit = self.create_audit_and_wait(
+            audit_template['uuid'], **audit_kwargs)
+
+        action_plan, _ = self.get_action_plan_and_validate_actions(
+            audit['uuid'], ['volume_migrate', 'migrate'])
+
+        self.assertEqual('RECOMMENDED', action_plan['state'])
+
+        self.execute_action_plan_and_validate_states(action_plan['uuid'])
+
+        free_volume_host = self.get_host_for_volume(free_volume['id'])
+        self.assertEqual(free_volume_host, dst_pool_free_volume)
+        self.assertNotEqual(free_volume_host, src_pool_free_volume)
+
+        vm_volume_host = self.get_host_for_volume(vm_volume['id'])
+        self.assertEqual(vm_volume_host, dst_pool_vm_volume)
+        self.assertNotEqual(vm_volume_host, src_pool_vm_volume)
+
+        self.assertEqual(
+            self.get_host_for_server(instance['id']),
+            dst_node
+        )
