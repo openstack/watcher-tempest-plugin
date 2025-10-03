@@ -45,19 +45,6 @@ class TestContinuousAudit(base.BaseInfraOptimScenarioTest):
         if not CONF.compute_feature_enabled.live_migration:
             raise cls.skipException("Live migration is not enabled")
 
-    @classmethod
-    def resource_setup(cls):
-        super().resource_setup()
-
-        enabled_compute_nodes = cls.get_enabled_compute_nodes()
-        cls.wait_for_compute_node_setup()
-
-        # NOTE(dviroel): If the class was not skipped and we don't have at
-        # least 2 compute nodes enabled, fail the test.
-        if len(enabled_compute_nodes) < 2:
-            cls.fail("At least 2 enabled compute nodes are required to run "
-                     "continuous audit tests.")
-
     @decorators.idempotent_id("bd6a18e9-bd51-4164-9e7f-4f19d9b428ba")
     @decorators.attr(type=['strategy', 'zone_migration'])
     def test_continuous_audit_zone_migration(self):
@@ -65,7 +52,7 @@ class TestContinuousAudit(base.BaseInfraOptimScenarioTest):
         # NOTE(dviroel): We don't need to start/trigger the action plan to
         # validate continous audits, but we need to create the workload and
         # check if the strategy will get updates from the model.
-
+        self.check_min_enabled_compute_nodes(2)
         self.addCleanup(self.wait_delete_instances_from_model)
 
         src_host = self.get_enabled_compute_nodes()[0]['host']

@@ -66,6 +66,10 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
     min_microversion = None
     max_microversion = manager.LATEST_MICROVERSION
 
+    # Holds the initial configuration of available compute nodes, to assist
+    # the rollback procedure.
+    initial_compute_nodes_setup = []
+
     # States where the object is waiting for some event to perform a transition
     IDLE_STATES = ('RECOMMENDED', 'FAILED', 'SUCCEEDED', 'CANCELLED')
     # States where the object can only be DELETED (end of its life-cycle)
@@ -265,6 +269,12 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
         _, action_plans = cls.client.list_action_plans()
         return all([ap['state'] in cls.AP_FINISHED_STATES
                     for ap in action_plans['action_plans']])
+
+    def check_min_enabled_compute_nodes(self, min_nodes):
+        enabled_compute_nodes = self.get_enabled_compute_nodes()
+        msg = ("This test required at least %s enabled compute nodes, but "
+               "only %s were found." % (min_nodes, len(enabled_compute_nodes)))
+        self.assertGreaterEqual(len(enabled_compute_nodes), min_nodes, msg=msg)
 
     def wait_for_all_action_plans_to_finish(self):
         assert test_utils.call_until_true(

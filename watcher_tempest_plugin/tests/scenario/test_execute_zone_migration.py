@@ -43,18 +43,6 @@ class TestZoneMigrationStrategyBase(base.BaseInfraOptimScenarioTest):
         if not CONF.compute_feature_enabled.live_migration:
             raise cls.skipException("Live migration is not enabled")
 
-    @classmethod
-    def resource_setup(cls):
-        super().resource_setup()
-
-        enabled_compute_nodes = cls.get_enabled_compute_nodes()
-        cls.wait_for_compute_node_setup()
-
-        if len(enabled_compute_nodes) < 2:
-            raise cls.skipException(
-                "Less than 2 compute nodes are enabled, "
-                "skipping multinode tests.")
-
 
 class TestExecuteZoneMigrationStrategy(TestZoneMigrationStrategyBase):
     """Tests for action plans"""
@@ -63,8 +51,7 @@ class TestExecuteZoneMigrationStrategy(TestZoneMigrationStrategyBase):
     @decorators.attr(type=['strategy', 'zone_migration'])
     def test_execute_zone_migration_with_destination_host(self):
         # This test requires metrics injection
-
-        self.addCleanup(self.rollback_compute_nodes_status)
+        self.check_min_enabled_compute_nodes(2)
         self.addCleanup(self.wait_delete_instances_from_model)
         instances = self._create_one_instance_per_host()
         # wait for compute model updates
@@ -96,8 +83,7 @@ class TestExecuteZoneMigrationStrategy(TestZoneMigrationStrategyBase):
     @decorators.attr(type=['strategy', 'zone_migration'])
     def test_execute_zone_migration_without_destination_host(self):
         # This test requires metrics injection
-
-        self.addCleanup(self.rollback_compute_nodes_status)
+        self.check_min_enabled_compute_nodes(2)
         self.addCleanup(self.wait_delete_instances_from_model)
         instances = self._create_one_instance_per_host()
         # wait for compute model updates
@@ -152,7 +138,6 @@ class TestExecuteZoneMigrationStrategyVolume(TestZoneMigrationStrategyBase):
     @decorators.attr(type=['strategy', 'zone_migration', 'volume_migration'])
     @decorators.idempotent_id('f8f4d551-d892-4111-ab92-5b6b5523e5dc')
     def test_execute_zone_migration_volume_retype(self):
-        self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
 
         # create second volume type

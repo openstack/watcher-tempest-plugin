@@ -43,19 +43,6 @@ class TestExecuteBasicStrategy(base.BaseInfraOptimScenarioTest):
         if not CONF.compute_feature_enabled.live_migration:
             raise cls.skipException("Live migration is not enabled")
 
-    @classmethod
-    def resource_setup(cls):
-        super(TestExecuteBasicStrategy, cls).resource_setup()
-
-        enabled_compute_nodes = cls.get_enabled_compute_nodes()
-
-        cls.wait_for_compute_node_setup()
-
-        if len(enabled_compute_nodes) < 2:
-            raise cls.skipException(
-                "Less than 2 compute nodes are enabled, "
-                "skipping multinode tests.")
-
     @decorators.attr(type=['strategy', 'basic'])
     @decorators.idempotent_id('62766a61-dfc4-478c-b80b-86d871227e67')
     def test_execute_basic_strategy(self):
@@ -67,6 +54,7 @@ class TestExecuteBasicStrategy(base.BaseInfraOptimScenarioTest):
         - run the action plan
         - get results and make sure it succeeded
         """
+        self.check_min_enabled_compute_nodes(2)
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
         self.addCleanup(self.clean_injected_metrics)

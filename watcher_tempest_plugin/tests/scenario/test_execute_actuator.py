@@ -63,21 +63,13 @@ class TestExecuteActionsViaActuator(base.BaseInfraOptimScenarioTest):
     ]
 
     @classmethod
-    def resource_setup(cls):
-        super(TestExecuteActionsViaActuator, cls).resource_setup()
+    def skip_checks(cls):
+        super().skip_checks()
         if CONF.compute.min_compute_nodes < 2:
             raise cls.skipException(
                 "Less than 2 compute nodes, skipping multinode tests.")
         if not CONF.compute_feature_enabled.live_migration:
             raise cls.skipException("Live migration is not enabled")
-
-        enabled_compute_nodes = cls.get_enabled_compute_nodes()
-        cls.wait_for_compute_node_setup()
-
-        if len(enabled_compute_nodes) < 2:
-            raise cls.skipException(
-                "Less than 2 compute nodes are enabled, "
-                "skipping multinode tests.")
 
     def _get_flavors(self):
         return self.mgr.flavors_client.list_flavors()['flavors']
@@ -200,6 +192,8 @@ class TestExecuteActionsViaActuator(base.BaseInfraOptimScenarioTest):
 
     @decorators.idempotent_id('0af1a181-38c8-4416-8e85-8ebca8ac1cf8')
     def test_execute_scenarios(self):
+        # Migration action requires at least 2 enabled compute nodes
+        self.check_min_enabled_compute_nodes(2)
         self.addCleanup(self.rollback_compute_nodes_status)
 
         for _, scenario in self.scenarios:

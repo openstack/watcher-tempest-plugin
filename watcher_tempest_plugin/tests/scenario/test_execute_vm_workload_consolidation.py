@@ -43,19 +43,6 @@ class TestExecuteVmWorkloadBalanceStrategy(base.BaseInfraOptimScenarioTest):
         if not CONF.compute_feature_enabled.live_migration:
             raise cls.skipException("Live migration is not enabled")
 
-    @classmethod
-    def resource_setup(cls):
-        super().resource_setup()
-
-        enabled_compute_nodes = cls.get_enabled_compute_nodes()
-
-        cls.wait_for_compute_node_setup()
-
-        if len(enabled_compute_nodes) < 2:
-            raise cls.skipException(
-                "Less than 2 compute nodes are enabled, "
-                "skipping multinode tests.")
-
     @decorators.attr(type=['strategy', 'vm_workload_consolidation'])
     @decorators.idempotent_id('9f3ee978-e033-4c1e-bbf2-9e5a5cb8a365')
     def test_execute_vm_workload_consolidation_strategy(self):
@@ -68,7 +55,7 @@ class TestExecuteVmWorkloadBalanceStrategy(base.BaseInfraOptimScenarioTest):
         - get results and make sure it succeeded
         """
         # This test requires metrics injection
-
+        self.check_min_enabled_compute_nodes(2)
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
         self.addCleanup(self.clean_injected_metrics)
@@ -97,7 +84,7 @@ class TestExecuteVmWorkloadBalanceStrategy(base.BaseInfraOptimScenarioTest):
             audit_template['uuid'], **audit_kwargs)
 
         action_plan, _ = self.get_action_plan_and_validate_actions(
-            audit['uuid'])
+            audit['uuid'], ['change_nova_service_state', 'migrate'])
 
         if action_plan['state'] in ('SUPERSEDED', 'SUCCEEDED'):
             # This means the action plan is superseded so we cannot trigger it,

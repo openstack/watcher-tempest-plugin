@@ -44,23 +44,11 @@ class TestExecuteHostMaintenanceStrategy(base.BaseInfraOptimScenarioTest):
         if not CONF.compute_feature_enabled.live_migration:
             raise cls.skipException("Live migration is not enabled")
 
-    @classmethod
-    def resource_setup(cls):
-        super().resource_setup()
-
-        enabled_compute_nodes = cls.get_enabled_compute_nodes()
-        cls.wait_for_compute_node_setup()
-
-        if len(enabled_compute_nodes) < 2:
-            raise cls.skipException(
-                "Less than 2 compute nodes are enabled, "
-                "skipping multinode tests.")
-
     @decorators.idempotent_id('17afd352-1929-46dd-a10a-63c90bb9255d')
     @decorators.attr(type=['strategy', 'host_maintenance'])
     def test_execute_host_maintenance_strategy(self):
         # This test does not require metrics injection
-
+        self.check_min_enabled_compute_nodes(2)
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
         instances = self._create_one_instance_per_host()
@@ -91,7 +79,7 @@ class TestExecuteHostMaintenanceStrategy(base.BaseInfraOptimScenarioTest):
     @decorators.attr(type=['strategy', 'host_maintenance'])
     def test_execute_host_maintenance_strategy_backup_node(self):
         # This test does not require metrics injection
-
+        self.check_min_enabled_compute_nodes(2)
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
         instances = self._create_one_instance_per_host()
