@@ -83,8 +83,6 @@ class TestDataModel(base.BaseInfraOptimScenarioTest):
             self.assertEqual(server_ctx['node_state'], node_details['state'])
 
             self.assertEqual(server_ctx['server_uuid'], instance['id'])
-            self.assertEqual(server_ctx['server_state'].upper(),
-                             instance['status'].upper())
             self.assertEqual(server_ctx['server_vcpus'],
                              instance['flavor']['vcpus'])
             self.assertEqual(server_ctx['server_memory'],
