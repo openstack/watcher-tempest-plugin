@@ -44,23 +44,11 @@ class TestExecuteWorkloadBalanceStrategy(base.BaseInfraOptimScenarioTest):
         if not CONF.compute_feature_enabled.live_migration:
             raise cls.skipException("Live migration is not enabled")
 
-    @classmethod
-    def resource_setup(cls):
-        super().resource_setup()
-
-        enabled_compute_nodes = cls.get_enabled_compute_nodes()
-        cls.wait_for_compute_node_setup()
-
-        if len(enabled_compute_nodes) < 2:
-            raise cls.skipException(
-                "Less than 2 compute nodes are enabled, "
-                "skipping multinode tests.")
-
     @decorators.attr(type=['strategy', 'workload_balance'])
     @decorators.idempotent_id('64a9293f-0f81-431c-afae-ecabebae53f1')
     def test_execute_workload_balance_strategy_cpu(self):
         # This test requires metrics injection
-        self.addCleanup(self.rollback_compute_nodes_status)
+        self.check_min_enabled_compute_nodes(2)
         self.addCleanup(self.wait_delete_instances_from_model)
         self.addCleanup(self.clean_injected_metrics)
         host = self.get_enabled_compute_nodes()[0]['host']
@@ -108,7 +96,7 @@ class TestExecuteWorkloadBalanceStrategy(base.BaseInfraOptimScenarioTest):
     @decorators.idempotent_id('de4f662a-26b1-4cbe-ba8e-c213bac0a996')
     def test_execute_workload_balance_strategy_ram(self):
         # This test requires metrics injection
-        self.addCleanup(self.rollback_compute_nodes_status)
+        self.check_min_enabled_compute_nodes(2)
         self.addCleanup(self.wait_delete_instances_from_model)
         self.addCleanup(self.clean_injected_metrics)
 

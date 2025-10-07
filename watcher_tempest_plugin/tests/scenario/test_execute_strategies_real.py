@@ -53,22 +53,11 @@ class TestRealExecuteStrategies(base.BaseInfraOptimScenarioTest):
         if not CONF.compute_feature_enabled.live_migration:
             raise cls.skipException("Live migration is not enabled")
 
-    @classmethod
-    def resource_setup(cls):
-        super().resource_setup()
-
-        cls.wait_for_compute_node_setup()
-        enabled_compute_nodes = cls.get_enabled_compute_nodes()
-        if len(enabled_compute_nodes) < 2:
-            raise cls.skipException(
-                "Less than 2 compute nodes are enabled, "
-                "skipping multinode tests.")
-
     @decorators.attr(type=['slow', 'real_load', 'cpu'])
     @decorators.idempotent_id('672a7a4d-91a0-4753-a7a4-be28db8c1bfb')
     def test_workload_balance_strategy_cpu(self):
         # This test does not require metrics injection
-        self.addCleanup(self.rollback_compute_nodes_status)
+        self.check_min_enabled_compute_nodes(2)
         self.addCleanup(self.wait_delete_instances_from_model)
         host = self.get_enabled_compute_nodes()[0]['host']
         hypervisor = self.get_hypervisor_details(host)
@@ -117,7 +106,7 @@ class TestRealExecuteStrategies(base.BaseInfraOptimScenarioTest):
     @decorators.idempotent_id('f1b8a0c4-2d3e-4a5b-8f7c-6d9e5f2a0b1c')
     def test_workload_balance_strategy_ram(self):
         # This test does not require metrics injection
-        self.addCleanup(self.rollback_compute_nodes_status)
+        self.check_min_enabled_compute_nodes(2)
         self.addCleanup(self.wait_delete_instances_from_model)
         host = self.get_enabled_compute_nodes()[0]['host']
         hypervisor = self.get_hypervisor_details(host)
@@ -164,8 +153,7 @@ class TestRealExecuteStrategies(base.BaseInfraOptimScenarioTest):
     @decorators.attr(type=['slow', 'real_load'])
     def test_workload_stabilization_strategy(self):
         # This test does not require metrics injection
-
-        self.addCleanup(self.rollback_compute_nodes_status)
+        self.check_min_enabled_compute_nodes(2)
         self.addCleanup(self.wait_delete_instances_from_model)
         run_command = self.COMMANDS_CREATE_LOAD['instance_cpu_usage']
         host = self.get_enabled_compute_nodes()[0]['host']

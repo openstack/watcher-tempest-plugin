@@ -29,23 +29,17 @@ class TestDataModel(base.BaseInfraOptimScenarioTest):
     min_microversion = "1.3"
 
     @classmethod
-    def resource_setup(cls):
-        super(TestDataModel, cls).resource_setup()
+    def skip_checks(cls):
+        super().skip_checks()
         if CONF.compute.min_compute_nodes < 1:
             raise cls.skipException(
                 "Data model tests requires at least 1 compute node, "
                 "skipping tests.")
 
-        enabled_compute_nodes = cls.get_enabled_compute_nodes()
-        cls.wait_for_compute_node_setup()
-
-        if len(enabled_compute_nodes) < 1:
-            raise cls.skipException(
-                "Data model tests requires at least 1 enabled compute "
-                "node, skipping tests.")
-
     @decorators.idempotent_id('dabd41a4-e668-43c8-89a2-3d231e2ed79d')
     def test_data_model_with_instances(self):
+        # This test requires at least one enabled compute node
+        self.check_min_enabled_compute_nodes(1)
         self.addCleanup(self.wait_delete_instances_from_model)
 
         instances = self._create_one_instance_per_host()

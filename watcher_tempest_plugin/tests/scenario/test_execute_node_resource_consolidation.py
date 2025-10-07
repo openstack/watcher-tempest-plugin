@@ -43,22 +43,11 @@ class TestExecuteNodeResourceConsolidationStrategy(
         if not CONF.compute_feature_enabled.live_migration:
             raise cls.skipException("Live migration is not enabled")
 
-    @classmethod
-    def resource_setup(cls):
-        super().resource_setup()
-
-        cls.wait_for_compute_node_setup()
-        enabled_compute_nodes = cls.get_enabled_compute_nodes()
-        if len(enabled_compute_nodes) < 2:
-            raise cls.skipException(
-                "Less than 2 compute nodes are enabled, "
-                "skipping multinode tests.")
-
     @decorators.attr(type=['strategy', 'node_resource_consolidation'])
     @decorators.idempotent_id('c0c061e9-4713-4a23-a6e1-5db794add685')
     def test_execute_node_resource_consolidation_strategy_with_auto(self):
         # This test does not require metrics injection
-
+        self.check_min_enabled_compute_nodes(2)
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
         instances = self._create_one_instance_per_host()
@@ -77,7 +66,7 @@ class TestExecuteNodeResourceConsolidationStrategy(
             audit_template['uuid'], **audit_kwargs)
 
         action_plan, _ = self.get_action_plan_and_validate_actions(
-            audit['uuid'])
+            audit['uuid'], ['change_nova_service_state', 'migrate'])
 
         if action_plan['state'] in ('SUPERSEDED', 'SUCCEEDED'):
             # This means the action plan is superseded so we cannot trigger it,
@@ -90,7 +79,7 @@ class TestExecuteNodeResourceConsolidationStrategy(
     @decorators.idempotent_id('12312f2b-ff7a-4722-9aa3-0262608e1ef0')
     def test_execute_node_resource_consolidation_strategy_with_specify(self):
         # This test does not require metrics injection
-
+        self.check_min_enabled_compute_nodes(2)
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
         instances = self._create_one_instance_per_host()
@@ -109,7 +98,7 @@ class TestExecuteNodeResourceConsolidationStrategy(
             audit_template['uuid'], **audit_kwargs)
 
         action_plan, _ = self.get_action_plan_and_validate_actions(
-            audit['uuid'])
+            audit['uuid'], ['migrate'])
 
         if action_plan['state'] in ('SUPERSEDED', 'SUCCEEDED'):
             # This means the action plan is superseded so we cannot trigger it,

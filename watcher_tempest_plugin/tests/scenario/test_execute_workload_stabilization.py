@@ -41,24 +41,11 @@ class TestExecuteWorkloadStabilizationStrategy(
         if not CONF.compute_feature_enabled.live_migration:
             raise cls.skipException("Live migration is not enabled")
 
-    @classmethod
-    def resource_setup(cls):
-        super().resource_setup()
-
-        enabled_compute_nodes = cls.get_enabled_compute_nodes()
-        cls.wait_for_compute_node_setup()
-
-        if len(enabled_compute_nodes) < 2:
-            raise cls.skipException(
-                "Less than 2 compute nodes are enabled, "
-                "skipping multinode tests.")
-
     @decorators.attr(type=['strategy', 'workload_stabilization'])
     @decorators.idempotent_id('14360d59-4923-49f7-bfe5-31d6a819b6f7')
     def test_execute_workload_stabilization_strategy_cpu(self):
         # This test requires metrics injection
-
-        self.addCleanup(self.rollback_compute_nodes_status)
+        self.check_min_enabled_compute_nodes(2)
         self.addCleanup(self.wait_delete_instances_from_model)
         self.addCleanup(self.clean_injected_metrics)
         host = self.get_enabled_compute_nodes()[0]['host']
@@ -102,8 +89,7 @@ class TestExecuteWorkloadStabilizationStrategy(
     @decorators.idempotent_id('4988b894-b237-4ebc-9af1-ecf1f9ea734e')
     def test_execute_workload_stabilization_strategy_ram(self):
         # This test requires metrics injection
-
-        self.addCleanup(self.rollback_compute_nodes_status)
+        self.check_min_enabled_compute_nodes(2)
         self.addCleanup(self.wait_delete_instances_from_model)
         self.addCleanup(self.clean_injected_metrics)
         host = self.get_enabled_compute_nodes()[0]['host']
