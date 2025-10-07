@@ -58,6 +58,11 @@ NOVA_API_VERSION_CREATE_WITH_HOST = '2.74'
 class BaseInfraOptimScenarioTest(manager.ScenarioTest):
     """Base class for Infrastructure Optimization API tests."""
 
+    # Default Goal and Strategy to be defined in each test class that inherit
+    # from this base class.
+    GOAL = None
+    STRATEGY = None
+
     min_microversion = None
     max_microversion = manager.LATEST_MICROVERSION
 
@@ -951,23 +956,28 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
                 return True
         return False
 
-    def execute_strategy(self, goal_name, strategy_name,
-                         expected_actions=[], **audit_kwargs):
-        """Execute an action plan based on the specific strategy
+    def create_audit_template_for_strategy(self, goal_name=None,
+                                           strategy_name=None):
+        """Create and return an audit template for the given goal/strategy."""
 
-        - create an audit template with the specific strategy
-        - run the audit to create an action plan
-        - get the action plan
-        - Verify that all action types in the expected_actions
-          list are present in the action plan.
-        - run the action plan
-        - get results and make sure it succeeded
-        """
+        goal_name = goal_name or self.GOAL
+        strategy_name = strategy_name or self.STRATEGY
+
         _, goal = self.client.show_goal(goal_name)
         _, strategy = self.client.show_strategy(strategy_name)
         _, audit_template = self.create_audit_template(
             goal['uuid'], strategy=strategy['uuid'])
 
+        return audit_template
+
+    def create_audit_and_wait(self, audit_template_uuid, **audit_kwargs):
+        """Create an audit from template and wait until it finishes.
+
+        Returns the finished audit object (dict).
+        Raises on FAILED/CANCELLED states.
+        """
+        # Ensure previous action plans are finished before
+        # creating a new audit
         self.assertTrue(test_utils.call_until_true(
             func=functools.partial(
                 self.has_action_plans_finished),
@@ -979,8 +989,9 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
         state = audit_kwargs.pop('state', None)
         interval = audit_kwargs.pop('interval', None)
         parameters = audit_kwargs.pop('parameters', None)
+
         _, audit = self.create_audit(
-            audit_template['uuid'],
+            audit_template_uuid,
             audit_type=audit_type,
             state=state,
             interval=interval,
@@ -989,7 +1000,8 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
         try:
             self.assertTrue(test_utils.call_until_true(
                 func=functools.partial(
-                    self.has_audit_finished, audit['uuid']),
+                    self.has_audit_finished,
+                    audit['uuid']),
                 duration=600,
                 sleep_for=2
             ))
@@ -997,46 +1009,67 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
             self.fail("The audit has failed!")
 
         _, finished_audit = self.client.show_audit(audit['uuid'])
-        if finished_audit.get('state') in ('FAILED', 'CANCELLED', 'SUSPENDED'):
+        if finished_audit.get('state') in (
+                'FAILED', 'CANCELLED', 'SUSPENDED'):
             self.fail("The audit ended in unexpected state: %s!"
                       % finished_audit.get('state'))
 
-        _, action_plans = self.client.list_action_plans(
-            audit_uuid=audit['uuid'])
-        action_plan = action_plans['action_plans'][0]
+        return finished_audit
 
-        _, action_plan = self.client.show_action_plan(action_plan['uuid'])
-        created_actions = self.client.list_actions(
+    def get_action_plan_and_validate_actions(
+            self, audit_uuid, expected_action_types=None):
+        """Fetch action plan for a finished audit and validate actions.
+
+        Returns the action_plan object (dict).
+        """
+        _, action_plans = self.client.list_action_plans(
+            audit_uuid=audit_uuid)
+        action_plan_ref = action_plans['action_plans'][0]
+        _, action_plan = self.client.show_action_plan(
+            action_plan_ref['uuid'])
+
+        actions = self.client.list_actions(
             action_plan_uuid=action_plan["uuid"])[1]['actions']
 
-        if expected_actions:
-            action_types = {a['action_type'] for a in created_actions}
-            if set(expected_actions) != action_types:
-                self.fail("The audit has found action types %s when expecting "
-                          "%s" % (action_types, expected_actions))
+        if expected_action_types:
+            action_types = {a['action_type'] for a in actions}
+            if set(expected_action_types) != action_types:
+                self.fail(
+                    "The audit has found action types %s when expecting %s"
+                    % (action_types, expected_action_types)
+                )
 
-        if action_plan['state'] in ('SUPERSEDED', 'SUCCEEDED'):
-            # This means the action plan is superseded so we cannot trigger it,
-            # or it is empty.
-            return
+        return action_plan, actions
 
+    def execute_action_plan_and_validate_states(
+            self, action_plan_uuid,
+            expected_action_plan_states=['SUCCEEDED'],
+            expected_action_states=['SUCCEEDED']):
+        """Start the action plan execution and wait for completion.
+
+        Returns the finished action plan object (dict).
+        """
         # Execute the action by changing its state to PENDING
-        _, updated_ap = self.client.start_action_plan(action_plan['uuid'])
+        _, updated_ap = self.client.start_action_plan(action_plan_uuid)
 
         self.assertTrue(test_utils.call_until_true(
             func=functools.partial(
-                self.has_action_plan_finished, action_plan['uuid']),
+                self.has_action_plan_finished,
+                action_plan_uuid
+            ),
             duration=600,
             sleep_for=2
         ))
-        _, finished_ap = self.client.show_action_plan(action_plan['uuid'])
-        _, action_list = self.client.list_actions(
+        _, finished_ap = self.client.show_action_plan(action_plan_uuid)
+        _, finished_actions = self.client.list_actions(
             action_plan_uuid=finished_ap["uuid"])
         self.assertIn(updated_ap['state'], ('PENDING', 'ONGOING'))
-        self.assertIn(finished_ap['state'], ('SUCCEEDED', 'SUPERSEDED'))
+        self.assertIn(finished_ap['state'], expected_action_plan_states)
 
-        for action in action_list['actions']:
-            self.assertEqual('SUCCEEDED', action.get('state'))
+        for action in finished_actions['actions']:
+            self.assertIn(action.get('state'), expected_action_states)
+
+        return finished_ap, finished_actions
 
     def check_node_trait(self, node_id, trait):
         """Check if trait is in node traits

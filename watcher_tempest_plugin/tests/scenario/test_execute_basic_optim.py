@@ -36,16 +36,16 @@ class TestExecuteBasicStrategy(base.BaseInfraOptimScenarioTest):
 
     @classmethod
     def skip_checks(cls):
-        super(TestExecuteBasicStrategy, cls).skip_checks()
-
-    @classmethod
-    def resource_setup(cls):
-        super(TestExecuteBasicStrategy, cls).resource_setup()
+        super().skip_checks()
         if CONF.compute.min_compute_nodes < 2:
             raise cls.skipException(
                 "Less than 2 compute nodes, skipping multinode tests.")
         if not CONF.compute_feature_enabled.live_migration:
             raise cls.skipException("Live migration is not enabled")
+
+    @classmethod
+    def resource_setup(cls):
+        super(TestExecuteBasicStrategy, cls).resource_setup()
 
         enabled_compute_nodes = cls.get_enabled_compute_nodes()
 
@@ -77,6 +77,8 @@ class TestExecuteBasicStrategy(base.BaseInfraOptimScenarioTest):
         for instance in instances:
             self.make_instance_statistic(instance)
 
+        audit_template = self.create_audit_template_for_strategy()
+
         audit_kwargs = {
             "parameters": {
                 "granularity": 300,
@@ -86,4 +88,15 @@ class TestExecuteBasicStrategy(base.BaseInfraOptimScenarioTest):
             }
         }
 
-        self.execute_strategy(self.GOAL, self.STRATEGY, **audit_kwargs)
+        audit = self.create_audit_and_wait(
+            audit_template['uuid'], **audit_kwargs)
+
+        action_plan, _ = self.get_action_plan_and_validate_actions(
+            audit['uuid'], ['migrate', 'change_nova_service_state'])
+
+        if action_plan['state'] in ('SUPERSEDED', 'SUCCEEDED'):
+            # This means the action plan is superseded so we cannot trigger it,
+            # or it is empty.
+            return
+
+        self.execute_action_plan_and_validate_states(action_plan['uuid'])

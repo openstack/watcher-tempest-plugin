@@ -29,6 +29,7 @@ class TestExecuteStorageCapacityBalanceStrategy(
     """Tests for storage capacity balance"""
 
     GOAL = "workload_balancing"
+    STRATEGY = "storage_capacity_balance"
 
     @classmethod
     def skip_checks(cls):
@@ -47,10 +48,22 @@ class TestExecuteStorageCapacityBalanceStrategy(
         self.create_volume(imageRef=CONF.compute.image_ref, size=3)
         self.create_volume(imageRef=CONF.compute.image_ref, size=3)
         self.create_volume(imageRef=CONF.compute.image_ref, size=1)
-        audit_parameters = {"volume_threshold": 25}
 
-        goal_name = self.GOAL
-        strategy_name = "storage_capacity_balance"
-        audit_kwargs = {"parameters": audit_parameters}
+        audit_kwargs = {
+            "parameters": {
+                "volume_threshold": 25
+            }
+        }
 
-        self.execute_strategy(goal_name, strategy_name, **audit_kwargs)
+        audit_template = self.create_audit_template_for_strategy()
+
+        audit = self.create_audit_and_wait(
+            audit_template['uuid'], **audit_kwargs)
+
+        action_plan, _ = self.get_action_plan_and_validate_actions(
+            audit['uuid'])
+
+        if action_plan['state'] in ('SUPERSEDED', 'SUCCEEDED'):
+            return
+
+        self.execute_action_plan_and_validate_states(action_plan['uuid'])

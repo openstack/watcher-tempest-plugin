@@ -30,21 +30,22 @@ class TestZoneMigrationStrategyBase(base.BaseInfraOptimScenarioTest):
     compute_min_microversion = base.NOVA_API_VERSION_CREATE_WITH_HOST
 
     GOAL = "hardware_maintenance"
+    STRATEGY = "zone_migration"
     # This test does not require metrics injection
     INJECT_METRICS = False
 
     @classmethod
     def skip_checks(cls):
-        super(TestZoneMigrationStrategyBase, cls).skip_checks()
-
-    @classmethod
-    def resource_setup(cls):
-        super(TestZoneMigrationStrategyBase, cls).resource_setup()
+        super().skip_checks()
         if CONF.compute.min_compute_nodes < 2:
             raise cls.skipException(
                 "Less than 2 compute nodes, skipping multinode tests.")
         if not CONF.compute_feature_enabled.live_migration:
             raise cls.skipException("Live migration is not enabled")
+
+    @classmethod
+    def resource_setup(cls):
+        super().resource_setup()
 
         enabled_compute_nodes = cls.get_enabled_compute_nodes()
         cls.wait_for_compute_node_setup()
@@ -76,13 +77,20 @@ class TestExecuteZoneMigrationStrategy(TestZoneMigrationStrategyBase):
             "compute_nodes": [{"src_node": src_node, "dst_node": dst_node}],
             }
 
-        goal_name = "hardware_maintenance"
-        strategy_name = "zone_migration"
         audit_kwargs = {"parameters": audit_parameters}
 
-        self.execute_strategy(goal_name, strategy_name,
-                              expected_actions=['migrate'],
-                              **audit_kwargs)
+        audit_template = self.create_audit_template_for_strategy()
+
+        audit = self.create_audit_and_wait(
+            audit_template['uuid'], **audit_kwargs)
+
+        action_plan, _ = self.get_action_plan_and_validate_actions(
+            audit['uuid'], ['migrate'])
+
+        if action_plan['state'] in ('SUPERSEDED', 'SUCCEEDED'):
+            return
+
+        self.execute_action_plan_and_validate_states(action_plan['uuid'])
 
     @decorators.idempotent_id('e4f192ca-26d4-4e38-bb86-4be4aeaabb24')
     @decorators.attr(type=['strategy', 'zone_migration'])
@@ -101,20 +109,27 @@ class TestExecuteZoneMigrationStrategy(TestZoneMigrationStrategyBase):
             "compute_nodes": [{"src_node": src_node}],
             }
 
-        goal_name = "hardware_maintenance"
-        strategy_name = "zone_migration"
         audit_kwargs = {"parameters": audit_parameters}
 
-        self.execute_strategy(goal_name, strategy_name,
-                              expected_actions=['migrate'],
-                              **audit_kwargs)
+        audit_template = self.create_audit_template_for_strategy()
+
+        audit = self.create_audit_and_wait(
+            audit_template['uuid'], **audit_kwargs)
+
+        action_plan, _ = self.get_action_plan_and_validate_actions(
+            audit['uuid'], ['migrate'])
+
+        if action_plan['state'] in ('SUPERSEDED', 'SUCCEEDED'):
+            return
+
+        self.execute_action_plan_and_validate_states(action_plan['uuid'])
 
 
 class TestExecuteZoneMigrationStrategyVolume(TestZoneMigrationStrategyBase):
 
     @classmethod
     def skip_checks(cls):
-        super(TestExecuteZoneMigrationStrategyVolume, cls).skip_checks()
+        super().skip_checks()
         if not CONF.service_available.cinder:
             raise cls.skipException("Cinder is not available")
 
@@ -174,14 +189,20 @@ class TestExecuteZoneMigrationStrategyVolume(TestZoneMigrationStrategyBase):
                 ]
             }
 
-        goal_name = "hardware_maintenance"
-        strategy_name = "zone_migration"
         audit_kwargs = {"parameters": audit_parameters}
 
-        LOG.debug("Executing strategy")
-        self.execute_strategy(goal_name, strategy_name,
-                              expected_actions=['volume_migrate'],
-                              **audit_kwargs)
+        audit_template = self.create_audit_template_for_strategy()
+
+        audit = self.create_audit_and_wait(
+            audit_template['uuid'], **audit_kwargs)
+
+        action_plan, _ = self.get_action_plan_and_validate_actions(
+            audit['uuid'], ['volume_migrate'])
+
+        if action_plan['state'] in ('SUPERSEDED', 'SUCCEEDED'):
+            return
+
+        self.execute_action_plan_and_validate_states(action_plan['uuid'])
 
         # check that the available volume was retyped
         self.assertEqual(

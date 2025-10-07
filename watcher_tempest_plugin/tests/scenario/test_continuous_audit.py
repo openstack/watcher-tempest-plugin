@@ -73,10 +73,8 @@ class TestContinuousAudit(base.BaseInfraOptimScenarioTest):
             "compute_nodes": [{"src_node": src_host}],
         }
 
-        _, goal = self.client.show_goal("hardware_maintenance")
-        _, strategy = self.client.show_strategy("zone_migration")
-        _, audit_template = self.create_audit_template(
-            goal["uuid"], strategy=strategy["uuid"])
+        audit_template = self.create_audit_template_for_strategy(
+            goal_name="hardware_maintenance", strategy_name="zone_migration")
 
         self.assertTrue(test_utils.call_until_true(
             func=functools.partial(

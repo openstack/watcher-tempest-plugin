@@ -31,20 +31,21 @@ class TestExecuteVmWorkloadBalanceStrategy(base.BaseInfraOptimScenarioTest):
     # Minimal version required for _create_one_instance_per_host
     compute_min_microversion = base.NOVA_API_VERSION_CREATE_WITH_HOST
 
-    GOAL_NAME = "server_consolidation"
+    GOAL = "server_consolidation"
+    STRATEGY = "vm_workload_consolidation"
 
     @classmethod
     def skip_checks(cls):
-        super(TestExecuteVmWorkloadBalanceStrategy, cls).skip_checks()
-
-    @classmethod
-    def resource_setup(cls):
-        super(TestExecuteVmWorkloadBalanceStrategy, cls).resource_setup()
+        super().skip_checks()
         if CONF.compute.min_compute_nodes < 2:
             raise cls.skipException(
                 "Less than 2 compute nodes, skipping multinode tests.")
         if not CONF.compute_feature_enabled.live_migration:
             raise cls.skipException("Live migration is not enabled")
+
+    @classmethod
+    def resource_setup(cls):
+        super().resource_setup()
 
         enabled_compute_nodes = cls.get_enabled_compute_nodes()
 
@@ -84,12 +85,23 @@ class TestExecuteVmWorkloadBalanceStrategy(base.BaseInfraOptimScenarioTest):
         for instance in instances:
             self.make_instance_statistic(instance, metrics=metrics)
 
-        goal_name = "server_consolidation"
-        strategy_name = "vm_workload_consolidation"
+        audit_template = self.create_audit_template_for_strategy()
+
         audit_kwargs = {
             "parameters": {
                 "period": 300,
             }
         }
 
-        self.execute_strategy(goal_name, strategy_name, **audit_kwargs)
+        audit = self.create_audit_and_wait(
+            audit_template['uuid'], **audit_kwargs)
+
+        action_plan, _ = self.get_action_plan_and_validate_actions(
+            audit['uuid'])
+
+        if action_plan['state'] in ('SUPERSEDED', 'SUCCEEDED'):
+            # This means the action plan is superseded so we cannot trigger it,
+            # or it is empty.
+            return
+
+        self.execute_action_plan_and_validate_states(action_plan['uuid'])

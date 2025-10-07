@@ -32,18 +32,21 @@ class TestExecuteWorkloadBalanceStrategy(base.BaseInfraOptimScenarioTest):
     # Minimal version required for _create_one_instance_per_host
     compute_min_microversion = base.NOVA_API_VERSION_CREATE_WITH_HOST
 
-    @classmethod
-    def skip_checks(cls):
-        super(TestExecuteWorkloadBalanceStrategy, cls).skip_checks()
+    GOAL = "workload_balancing"
+    STRATEGY = "workload_balance"
 
     @classmethod
-    def resource_setup(cls):
-        super(TestExecuteWorkloadBalanceStrategy, cls).resource_setup()
+    def skip_checks(cls):
+        super().skip_checks()
         if CONF.compute.min_compute_nodes < 2:
             raise cls.skipException(
                 "Less than 2 compute nodes, skipping multinode tests.")
         if not CONF.compute_feature_enabled.live_migration:
             raise cls.skipException("Live migration is not enabled")
+
+    @classmethod
+    def resource_setup(cls):
+        super().resource_setup()
 
         enabled_compute_nodes = cls.get_enabled_compute_nodes()
         cls.wait_for_compute_node_setup()
@@ -86,12 +89,20 @@ class TestExecuteWorkloadBalanceStrategy(base.BaseInfraOptimScenarioTest):
             "period": 300,
             "granularity": 300}
 
-        goal_name = "workload_balancing"
-        strategy_name = "workload_balance"
         audit_kwargs = {"parameters": audit_parameters}
 
-        self.execute_strategy(goal_name, strategy_name,
-                              expected_actions=['migrate'], **audit_kwargs)
+        audit_template = self.create_audit_template_for_strategy()
+
+        audit = self.create_audit_and_wait(
+            audit_template['uuid'], **audit_kwargs)
+
+        action_plan, _ = self.get_action_plan_and_validate_actions(
+            audit['uuid'], ['migrate'])
+
+        if action_plan['state'] in ('SUPERSEDED', 'SUCCEEDED'):
+            return
+
+        self.execute_action_plan_and_validate_states(action_plan['uuid'])
 
     @decorators.attr(type=['strategy', 'workload_balance'])
     @decorators.idempotent_id('de4f662a-26b1-4cbe-ba8e-c213bac0a996')
@@ -100,6 +111,7 @@ class TestExecuteWorkloadBalanceStrategy(base.BaseInfraOptimScenarioTest):
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
         self.addCleanup(self.clean_injected_metrics)
+
         host = self.get_enabled_compute_nodes()[0]['host']
         hypervisor = self.get_hypervisor_details(host)
         # Flavor RAM is set to 15% of the hypervisor memory
@@ -123,9 +135,17 @@ class TestExecuteWorkloadBalanceStrategy(base.BaseInfraOptimScenarioTest):
             "period": 300,
             "granularity": 300}
 
-        goal_name = "workload_balancing"
-        strategy_name = "workload_balance"
         audit_kwargs = {"parameters": audit_parameters}
 
-        self.execute_strategy(goal_name, strategy_name,
-                              expected_actions=['migrate'], **audit_kwargs)
+        audit_template = self.create_audit_template_for_strategy()
+
+        audit = self.create_audit_and_wait(
+            audit_template['uuid'], **audit_kwargs)
+
+        action_plan, _ = self.get_action_plan_and_validate_actions(
+            audit['uuid'], ['migrate'])
+
+        if action_plan['state'] in ('SUPERSEDED', 'SUCCEEDED'):
+            return
+
+        self.execute_action_plan_and_validate_states(action_plan['uuid'])
