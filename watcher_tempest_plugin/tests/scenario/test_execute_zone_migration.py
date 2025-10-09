@@ -196,14 +196,28 @@ class TestExecuteZoneMigrationStrategyVolume(TestZoneMigrationStrategyBase):
         self.check_min_enabled_compute_nodes(2)
         self.addCleanup(self.wait_delete_instances_from_model)
 
-        # create second volume type
-        volume_type = self.create_volume_type()
+        src_volume_type = self.create_volume_type()
+        src_type = src_volume_type["name"]
+
+        dst_volume_type = self.create_volume_type()
+        dst_type = dst_volume_type["name"]
+
+        # create additional volume type, with a volume
+        # associated. The test will use the src_type parameter to filter the
+        # volumes being retyped, and at the end of the test we will check the
+        # volume with this extra_volume_type was not changed as a result of the
+        # action plan.
+        extra_volume_type = self.create_volume_type()
+        extra_volume = self.create_volume(
+            name="extra_volume_retype",
+            volume_type=extra_volume_type["name"]
+        )
 
         # create a free volume
         free_volume = self.create_volume(
             name="free_volume_retype",
+            volume_type=src_type
         )
-        src_type = free_volume['volume_type']
 
         # create a volume and attach it to an instance
         instance = self.create_server(
@@ -213,6 +227,7 @@ class TestExecuteZoneMigrationStrategyVolume(TestZoneMigrationStrategyBase):
         )
         vm_volume = self.create_volume(
             name="attached_volume_retype",
+            volume_type=src_type
             )
         self.nova_volume_attach(
             instance, vm_volume, servers_client=self.os_primary.servers_client
@@ -226,9 +241,13 @@ class TestExecuteZoneMigrationStrategyVolume(TestZoneMigrationStrategyBase):
         }
 
         audit_parameters = {
+            # add the parameter to detect any possible regression on
+            # https://bugs.launchpad.net/watcher/+bug/2111429, for this test
+            # the parameter should have no impact
+            "with_attached_volume": True,
             "storage_pools": [
                 {"src_pool": src_pool, "src_type": src_type,
-                 "dst_type": volume_type['name']}
+                 "dst_type": dst_type}
                 for src_pool in src_pools
                 ]
             }
@@ -249,10 +268,18 @@ class TestExecuteZoneMigrationStrategyVolume(TestZoneMigrationStrategyBase):
 
         # check that the available volume was retyped
         self.assertEqual(
-            self.get_type_for_volume(free_volume['id']), volume_type['name']
+            self.get_type_for_volume(free_volume['id']), dst_type
         )
         self.assertEqual(
-            self.get_type_for_volume(vm_volume['id']), volume_type['name']
+            self.get_type_for_volume(vm_volume['id']), dst_type
+        )
+        # check that extra_volume was not retyped as a result of the audit,
+        # meaning that the volume was ignored due to the value of src_type,
+        # this should serve to detect a possible regression on
+        # https://bugs.launchpad.net/watcher/+bug/2111507
+        self.assertEqual(
+            self.get_type_for_volume(extra_volume['id']),
+            extra_volume_type['name']
         )
 
     @decorators.attr(type=['strategy', 'zone_migration', 'volume_migration'])
