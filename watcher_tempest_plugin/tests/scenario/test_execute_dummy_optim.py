@@ -56,9 +56,6 @@ class TestExecuteDummyStrategy(base.BaseInfraOptimScenarioTest):
         self.assertEqual(2, action_counter.get("nop"))
         self.assertEqual(1, action_counter.get("sleep"))
 
-        if action_plan['state'] in ('SUPERSEDED', 'SUCCEEDED'):
-            # This means the action plan is superseded so we cannot trigger it,
-            # or it is empty.
-            return
+        self.assertEqual("RECOMMENDED", action_plan['state'])
 
         self.execute_action_plan_and_validate_states(action_plan['uuid'])
