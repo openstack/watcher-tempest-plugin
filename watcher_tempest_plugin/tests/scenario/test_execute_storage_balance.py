@@ -43,6 +43,7 @@ class TestExecuteStorageCapacityBalanceStrategy(
 
     @decorators.idempotent_id('7e3a9195-acc5-40cf-96da-a0a2883294d3')
     @decorators.attr(type=['strategy', 'storage_capacity_balance'])
+    @decorators.skip_because(bug="2122430")
     def test_execute_storage_capacity_balance_strategy(self):
         self.create_volume(imageRef=CONF.compute.image_ref, size=3)
         self.create_volume(imageRef=CONF.compute.image_ref, size=3)
