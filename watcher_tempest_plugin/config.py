@@ -132,4 +132,16 @@ OptimizationGroup = [
         default=False,
         help="Whether or not to run continuous audit scenario tests.",
     ),
+    cfg.BoolOpt(
+        "run_extended_attributes_tests",
+        default=False,
+        help="Whether or not to run compute model extended attributes tests. "
+             "Note that Watcher also needs to be configured to enable the "
+             "collection of extended attributes for the compute model and the "
+             "watcher option nova_client.api_version must be set configured "
+             "accordingly. Note that some attributes require the model "
+             "collector to run and update the model, so make sure that your "
+             "`watcher_cluster_data_model_collectors` period configuration is "
+             "less than 300 seconds."
+    ),
 ]
