@@ -15,7 +15,6 @@
         - watcher-tempest-functional-2025-2
         - watcher-tempest-functional-2025-1
         - watcher-tempest-functional-2024-2
-        - watcher-tempest-functional-2024-1
     gate:
       jobs:
         - watcher-tempest-functional
@@ -41,9 +40,3 @@
     parent: watcher-tempest-functional
     nodeset: openstack-single-node-jammy
     override-checkout: stable/2024.2
-
-- job:
-    name: watcher-tempest-functional-2024-1
-    parent: watcher-tempest-functional
-    nodeset: openstack-single-node-jammy
-    override-checkout: stable/2024.1
