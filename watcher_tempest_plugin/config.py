@@ -167,4 +167,13 @@ OptimizationGroup = [
         default=False,
         help="Whether or not to run boot from volume tests."
     ),
+    cfg.BoolOpt(
+        "run_skipped_action_tests",
+        default=False,
+        help="Whether or not to run skipped action precondition "
+             "validation tests. These tests validate that Watcher "
+             "properly skips or fails actions when preconditions "
+             "are not met. Requires Watcher to support the action "
+             "skipping feature."
+    )
 ]

@@ -270,9 +270,11 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest,
 
     def check_min_enabled_compute_nodes(self, min_nodes):
         enabled_compute_nodes = self.get_enabled_compute_nodes()
-        msg = ("This test required at least %s enabled compute nodes, but "
-               "only %s were found." % (min_nodes, len(enabled_compute_nodes)))
-        self.assertGreaterEqual(len(enabled_compute_nodes), min_nodes, msg=msg)
+        msg = ("This test required at least %s enabled compute nodes, "
+               "but only %s were found." %
+               (min_nodes, len(enabled_compute_nodes)))
+        self.assertGreaterEqual(
+            len(enabled_compute_nodes), min_nodes, msg=msg)
 
     def wait_for_all_action_plans_to_finish(self):
         assert test_utils.call_until_true(
@@ -425,6 +427,41 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest,
         instance = self.mgr.servers_client.show_server(
             instance['id'])['server']
         return instance
+
+    def _delete_instance(self, instance_id, wait=True):
+        """Delete an instance and optionally wait for termination.
+
+        :param instance_id: The UUID of the instance to delete
+        :param wait: Whether to wait for server termination (default: True)
+        """
+        self.mgr.servers_client.delete_server(instance_id)
+        if wait:
+            waiters.wait_for_server_termination(
+                self.mgr.servers_client, instance_id)
+
+    def _delete_volume(self, volume_id, wait=True):
+        """Delete a volume and optionally wait for deletion.
+
+        :param volume_id: The UUID of the volume to delete
+        :param wait: Whether to wait for volume deletion (default: True)
+        """
+        self.os_admin.volumes_client_latest.delete_volume(volume_id)
+        if wait:
+            self.os_admin.volumes_client_latest.wait_for_resource_deletion(
+                volume_id)
+
+    def _restore_service_state(self, service_id, original_status):
+        """Restore a Nova service to its original state.
+
+        :param service_id: The ID of the service to restore
+        :param original_status: The original status to restore to
+        """
+        try:
+            self.mgr.services_client.update_service(service_id,
+                                                    status=original_status)
+        except (exceptions.NotFound, exceptions.Conflict):
+            # Service already gone or state conflict, safe to ignore
+            pass
 
     def _pack_all_created_instances_on_one_host(self, instances):
         hypervisors = [
@@ -1093,7 +1130,7 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest,
         model. Compare with the list of instances provided as argument.
 
         :param instances: List of instances to wait for.
-        :param attributes_map: Map withattributes and expected values.
+        :param attributes_map: Map with attributes and expected values.
         :param timeout: Timeout in seconds.
 
         :raises: Exception if attributes were not updated in the model.
