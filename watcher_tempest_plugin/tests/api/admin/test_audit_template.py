@@ -90,13 +90,12 @@ class TestCreateDeleteAuditTemplate(base.BaseInfraOptimTest):
 class TestAuditTemplate(base.BaseInfraOptimTest):
     """Tests for audit_template."""
 
-    @classmethod
-    def resource_setup(cls):
-        super(TestAuditTemplate, cls).resource_setup()
-        _, cls.goal = cls.client.show_goal("dummy")
-        _, cls.strategy = cls.client.show_strategy("dummy")
-        _, cls.audit_template = cls.create_audit_template(
-            goal=cls.goal['uuid'], strategy=cls.strategy['uuid'])
+    def setUp(self):
+        super().setUp()
+        _, self.goal = self.client.show_goal("dummy")
+        _, self.strategy = self.client.show_strategy("dummy")
+        _, self.audit_template = self.create_audit_template(
+            goal=self.goal['uuid'], strategy=self.strategy['uuid'])
 
     @decorators.attr(type='smoke')
     @decorators.idempotent_id('93f98a9c-b892-48c5-a60a-a56d78bb8c3b')

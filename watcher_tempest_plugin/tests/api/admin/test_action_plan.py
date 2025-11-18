@@ -52,6 +52,10 @@ class TestCreateDeleteExecuteActionPlan(base.BaseInfraOptimTest):
     def test_execute_action_plan(self):
         _, goal = self.client.show_goal("dummy")
         _, audit_template = self.create_audit_template(goal['uuid'])
+
+        # Wait for any running action plans to finish before creating audit
+        self.wait_for_all_action_plans_to_finish()
+
         _, audit = self.create_audit(audit_template['uuid'])
 
         self.assertTrue(test_utils.call_until_true(
@@ -59,6 +63,7 @@ class TestCreateDeleteExecuteActionPlan(base.BaseInfraOptimTest):
             duration=30,
             sleep_for=.5
         ))
+
         _, action_plans = self.client.list_action_plans(
             audit_uuid=audit['uuid'])
         action_plan = action_plans['action_plans'][0]
@@ -76,6 +81,10 @@ class TestCreateDeleteExecuteActionPlan(base.BaseInfraOptimTest):
     def test_delete_action_plan(self):
         _, goal = self.client.show_goal("dummy")
         _, audit_template = self.create_audit_template(goal['uuid'])
+
+        # Wait for any running action plans to finish before creating audit
+        self.wait_for_all_action_plans_to_finish()
+
         _, audit = self.create_audit(audit_template['uuid'])
 
         self.assertTrue(test_utils.call_until_true(
@@ -83,6 +92,7 @@ class TestCreateDeleteExecuteActionPlan(base.BaseInfraOptimTest):
             duration=30,
             sleep_for=.5
         ))
+
         _, action_plans = self.client.list_action_plans(
             audit_uuid=audit['uuid'])
         action_plan = action_plans['action_plans'][0]
@@ -98,22 +108,27 @@ class TestCreateDeleteExecuteActionPlan(base.BaseInfraOptimTest):
 class TestShowListActionPlan(base.BaseInfraOptimTest):
     """Tests for action_plan."""
 
-    @classmethod
-    def resource_setup(cls):
-        super(TestShowListActionPlan, cls).resource_setup()
-        _, cls.goal = cls.client.show_goal("dummy")
-        _, cls.audit_template = cls.create_audit_template(cls.goal['uuid'])
-        _, cls.audit = cls.create_audit(cls.audit_template['uuid'])
+    def setUp(self):
+        super().setUp()
+        _, self.goal = self.client.show_goal("dummy")
+        _, self.audit_template = self.create_audit_template(self.goal['uuid'])
+
+        # Wait for any running action plans to finish before creating audit
+        self.wait_for_all_action_plans_to_finish()
+
+        _, self.audit = self.create_audit(self.audit_template['uuid'])
 
         assert test_utils.call_until_true(
-            func=functools.partial(cls.has_audit_finished, cls.audit['uuid']),
+            func=functools.partial(
+                self.has_audit_finished, self.audit['uuid']),
             duration=30,
             sleep_for=.5
         )
-        _, action_plans = cls.client.list_action_plans(
-            audit_uuid=cls.audit['uuid'])
+
+        _, action_plans = self.client.list_action_plans(
+            audit_uuid=self.audit['uuid'])
         if len(action_plans['action_plans']) > 0:
-            cls.action_plan = action_plans['action_plans'][0]
+            self.action_plan = action_plans['action_plans'][0]
 
     @decorators.attr(type='smoke')
     @decorators.idempotent_id('33465228-aac1-4688-9db3-6b1532c84323')

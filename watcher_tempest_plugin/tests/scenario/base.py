@@ -42,6 +42,7 @@ from watcher_tempest_plugin import infra_optim_clients as clients
 from watcher_tempest_plugin.services.infra_optim.v1.json import (
     api_microversion_fixture as watcher_microversion_fixture
 )
+from watcher_tempest_plugin.tests.common import base
 
 
 LOG = log.getLogger(__name__)
@@ -58,7 +59,8 @@ NOVA_API_VERSION_CREATE_WITH_HOST = '2.74'
 NOVA_API_VERSION_SERVER_PINNED_AZ = '2.96'
 
 
-class BaseInfraOptimScenarioTest(manager.ScenarioTest):
+class BaseInfraOptimScenarioTest(manager.ScenarioTest,
+                                 base.WatcherHelperMixin):
     """Base class for Infrastructure Optimization API tests."""
 
     # Default Goal and Strategy to be defined in each test class that inherit
@@ -72,13 +74,6 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
     # Holds the initial configuration of available compute nodes, to assist
     # the rollback procedure.
     initial_compute_nodes_setup = []
-
-    # States where the object is waiting for some event to perform a transition
-    IDLE_STATES = ('RECOMMENDED', 'FAILED', 'SUCCEEDED', 'CANCELLED')
-    # States where the object can only be DELETED (end of its life-cycle)
-    AUDIT_FINISHED_STATES = ('FAILED', 'SUCCEEDED', 'CANCELLED', 'SUSPENDED')
-    # States where the object can only be DELETED (end of its life-cycle)
-    AP_FINISHED_STATES = ('FAILED', 'SUCCEEDED', 'CANCELLED', 'SUPERSEDED')
 
     # Metric map used to add or retrieve metrics on Prometheus
     # NOTE(dviroel): This maps metrics consumed from Prometheus server,
@@ -270,7 +265,7 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
     @classmethod
     def _are_all_action_plans_finished(cls):
         _, action_plans = cls.client.list_action_plans()
-        return all([ap['state'] in cls.AP_FINISHED_STATES
+        return all([ap['state'] in cls.ACTIONPLAN_FINISHED_STATES
                     for ap in action_plans['action_plans']])
 
     def check_min_enabled_compute_nodes(self, min_nodes):
@@ -850,73 +845,6 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
                     timestamp=timestamp)
                 self.prometheus_client.add_measures(ram_total_data)
 
-    # ### AUDIT TEMPLATES ### #
-
-    def create_audit_template(self, goal, name=None, description=None,
-                              strategy=None):
-        """Wrapper utility for creating a test audit template
-
-        :param goal: Goal UUID or name related to the audit template.
-        :param name: The name of the audit template. Default: My Audit Template
-        :param description: The description of the audit template.
-        :param strategy: Strategy UUID or name related to the audit template.
-        :return: A tuple with The HTTP response and its body
-        """
-        description = description or data_utils.rand_name(
-            'test-audit_template')
-        resp, body = self.client.create_audit_template(
-            name=name, description=description, goal=goal, strategy=strategy)
-
-        self.addCleanup(
-            self.delete_audit_template,
-            audit_template_uuid=body["uuid"]
-        )
-
-        return resp, body
-
-    def delete_audit_template(self, audit_template_uuid):
-        """Deletes a audit_template having the specified UUID
-
-        :param audit_template_uuid: The unique identifier of the audit template
-        :return: Server response
-        """
-        resp, _ = self.client.delete_audit_template(audit_template_uuid)
-        return resp
-
-    # ### AUDITS ### #
-
-    def create_audit(self, audit_template_uuid, audit_type='ONESHOT',
-                     state=None, interval=None, parameters=None):
-        """Wrapper utility for creating a test audit
-
-        :param audit_template_uuid: Audit Template UUID this audit will use
-        :param type: Audit type (either ONESHOT or CONTINUOUS)
-        :param state: Audit state (str)
-        :param interval: Audit interval in seconds (int)
-        :param parameters: list of execution parameters
-        :return: A tuple with The HTTP response and its body
-        """
-        resp, body = self.client.create_audit(
-            audit_template_uuid=audit_template_uuid, audit_type=audit_type,
-            state=state, interval=interval, parameters=parameters)
-
-        self.addCleanup(self.delete_audit, audit_uuid=body["uuid"])
-        return resp, body
-
-    def delete_audit(self, audit_uuid):
-        """Deletes an audit having the specified UUID
-
-        :param audit_uuid: The unique identifier of the audit.
-        :return: the HTTP response
-        """
-
-        _, action_plans = self.client.list_action_plans(audit_uuid=audit_uuid)
-        for action_plan in action_plans.get("action_plans", []):
-            self.delete_action_plan(action_plan_uuid=action_plan["uuid"])
-
-        resp, _ = self.client.delete_audit(audit_uuid)
-        return resp
-
     def has_audit_succeeded(self, audit_uuid):
         _, audit = self.client.show_audit(audit_uuid)
         if audit.get('state') in ('FAILED', 'CANCELLED'):
@@ -936,28 +864,20 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest):
 
     # ### ACTION PLANS ### #
 
-    def delete_action_plan(self, action_plan_uuid):
-        """Deletes an action plan having the specified UUID
-
-        :param action_plan_uuid: The unique identifier of the action plan.
-        :return: the HTTP response
-        """
-        resp, _ = self.client.delete_action_plan(action_plan_uuid)
-        return resp
-
     def has_action_plans(self, audit_uuid=None):
         _, action_plans = self.client.list_action_plans(audit_uuid=audit_uuid)
         return len(action_plans['action_plans']) > 0
 
     def has_action_plan_finished(self, action_plan_uuid):
         _, action_plan = self.client.show_action_plan(action_plan_uuid)
-        return action_plan.get('state') in self.AP_FINISHED_STATES
+        return action_plan.get('state') in self.ACTIONPLAN_FINISHED_STATES
 
     def has_action_plans_finished(self):
         _, action_plans = self.client.list_action_plans()
         for ap in action_plans['action_plans']:
             _, action_plan = self.client.show_action_plan(ap['uuid'])
-            if action_plan.get('state') not in self.AP_FINISHED_STATES:
+            if (action_plan.get('state') not in
+                    self.ACTIONPLAN_FINISHED_STATES):
                 return False
         return True
 

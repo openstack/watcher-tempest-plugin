@@ -26,21 +26,36 @@ from watcher_tempest_plugin.tests.api.admin import base
 class TestShowListAction(base.BaseInfraOptimTest):
     """Tests for actions"""
 
-    @classmethod
-    def resource_setup(cls):
-        super(TestShowListAction, cls).resource_setup()
-        _, cls.goal = cls.client.show_goal("DUMMY")
-        _, cls.audit_template = cls.create_audit_template(cls.goal['uuid'])
-        _, cls.audit = cls.create_audit(cls.audit_template['uuid'])
+    def setUp(self):
+        super().setUp()
+        _, self.goal = self.client.show_goal("DUMMY")
+        _, self.audit_template = self.create_audit_template(self.goal['uuid'])
 
+        # Wait for any running action plans to finish before creating audit
+        self.wait_for_all_action_plans_to_finish()
+
+        _, self.audit = self.create_audit(self.audit_template['uuid'])
+
+        # Wait for audit to finish (in any state)
         assert test_utils.call_until_true(
-            func=functools.partial(cls.has_audit_finished, cls.audit['uuid']),
+            func=functools.partial(self.has_audit_finished,
+                                   self.audit['uuid']),
             duration=30,
             sleep_for=.5
+        ), "Audit %s did not finish within expected time" % self.audit['uuid']
+
+        # Check if audit succeeded
+        _, finished_audit = self.client.show_audit(self.audit['uuid'])
+        audit_state = finished_audit.get('state')
+        assert audit_state == 'SUCCEEDED', (
+            "Audit %s ended in state %s instead of SUCCEEDED" %
+            (self.audit['uuid'], audit_state)
         )
-        _, action_plans = cls.client.list_action_plans(
-            audit_uuid=cls.audit['uuid'])
-        cls.action_plan = action_plans['action_plans'][0]
+
+        _, action_plans = self.client.list_action_plans(
+            audit_uuid=self.audit['uuid'])
+
+        self.action_plan = action_plans['action_plans'][0]
 
     @decorators.attr(type='smoke')
     @decorators.idempotent_id('0390c465-df10-460f-9924-ff3d14779395')
@@ -119,25 +134,36 @@ class TestPatchAction(base.BaseInfraOptimTest):
     # Minimal version required for Actions Patch API
     min_microversion = "1.5"
 
-    @classmethod
-    def setup(cls):
-        super(TestPatchAction, cls).setup()
+    def setUp(self):
+        super().setUp()
+        _, self.goal = self.client.show_goal("DUMMY")
+        _, self.audit_template = self.create_audit_template(self.goal['uuid'])
 
-    @classmethod
-    def resource_setup(cls):
-        super(TestPatchAction, cls).resource_setup()
-        _, cls.goal = cls.client.show_goal("DUMMY")
-        _, cls.audit_template = cls.create_audit_template(cls.goal['uuid'])
-        _, cls.audit = cls.create_audit(cls.audit_template['uuid'])
+        # Wait for any running action plans to finish before creating audit
+        self.wait_for_all_action_plans_to_finish()
 
+        _, self.audit = self.create_audit(self.audit_template['uuid'])
+
+        # Wait for audit to finish (in any state)
         assert test_utils.call_until_true(
-            func=functools.partial(cls.has_audit_finished, cls.audit['uuid']),
+            func=functools.partial(self.has_audit_finished,
+                                   self.audit['uuid']),
             duration=30,
             sleep_for=.5
+        ), "Audit %s did not finish within expected time" % self.audit['uuid']
+
+        # Check if audit succeeded
+        _, finished_audit = self.client.show_audit(self.audit['uuid'])
+        audit_state = finished_audit.get('state')
+        assert audit_state == 'SUCCEEDED', (
+            "Audit %s ended in state %s instead of SUCCEEDED" %
+            (self.audit['uuid'], audit_state)
         )
-        _, action_plans = cls.client.list_action_plans(
-            audit_uuid=cls.audit['uuid'])
-        cls.action_plan = action_plans['action_plans'][0]
+
+        _, action_plans = self.client.list_action_plans(
+            audit_uuid=self.audit['uuid'])
+
+        self.action_plan = action_plans['action_plans'][0]
 
     @decorators.attr(type="smoke")
     @decorators.idempotent_id('e2360342-8042-4faf-a028-5e63fd844387')

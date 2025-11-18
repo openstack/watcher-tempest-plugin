@@ -21,13 +21,11 @@ from tempest.lib import decorators
 from tempest.lib import exceptions
 
 from watcher_tempest_plugin.tests.api.admin import base
+from watcher_tempest_plugin.tests.common import base as common_base
 
 
 class TestCreateUpdateDeleteAudit(base.BaseInfraOptimTest):
     """Tests for audit."""
-
-    audit_states = ['ONGOING', 'SUCCEEDED', 'FAILED',
-                    'CANCELLED', 'DELETED', 'PENDING', 'SUSPENDED']
 
     def assert_expected(self, expected, actual,
                         keys=('created_at', 'updated_at', 'next_run_time',
@@ -78,17 +76,7 @@ class TestCreateUpdateDeleteAudit(base.BaseInfraOptimTest):
         _, audit = self.client.show_audit(body['uuid'])
         self.assert_expected(audit, body)
 
-        _, audit = self.update_audit(
-            body['uuid'],
-            [{'op': 'replace', 'path': '/state', 'value': 'CANCELLED'}]
-        )
-
-        test_utils.call_until_true(
-            func=functools.partial(
-                self.is_audit_idle, body['uuid']),
-            duration=10,
-            sleep_for=.5
-        )
+        self.cancel_audit(body['uuid'])
 
         _, audit = self.client.show_audit(body['uuid'])
         self.assertEqual(audit['state'], 'CANCELLED')
@@ -121,17 +109,7 @@ class TestCreateUpdateDeleteAudit(base.BaseInfraOptimTest):
         _, audit = self.client.show_audit(body['uuid'])
         self.assert_expected(audit, body)
 
-        _, audit = self.update_audit(
-            body['uuid'],
-            [{'op': 'replace', 'path': '/state', 'value': 'CANCELLED'}]
-        )
-
-        test_utils.call_until_true(
-            func=functools.partial(
-                self.is_audit_idle, body['uuid']),
-            duration=10,
-            sleep_for=.5
-        )
+        self.cancel_audit(body['uuid'])
 
         _, audit = self.client.show_audit(body['uuid'])
         self.assertEqual(audit['state'], 'CANCELLED')
@@ -180,7 +158,7 @@ class TestCreateUpdateDeleteAudit(base.BaseInfraOptimTest):
         _, audit = self.client.show_audit(body['uuid'])
 
         initial_audit_state = audit.pop('state')
-        self.assertIn(initial_audit_state, self.audit_states)
+        self.assertIn(initial_audit_state, common_base.AuditStates.values())
 
         self.assert_expected(audit, body)
 
@@ -204,17 +182,7 @@ class TestCreateUpdateDeleteAudit(base.BaseInfraOptimTest):
             sleep_for=.5
         )
 
-        _, audit = self.update_audit(
-            audit_uuid,
-            [{'op': 'replace', 'path': '/state', 'value': 'CANCELLED'}]
-        )
-
-        test_utils.call_until_true(
-            func=functools.partial(
-                self.is_audit_idle, audit_uuid),
-            duration=10,
-            sleep_for=.5
-        )
+        self.cancel_audit(audit_uuid)
 
     @decorators.attr(type='smoke')
     @decorators.idempotent_id('e06add3b-1a48-41c2-871e-5d0803a81a37')
@@ -251,15 +219,20 @@ class TestCreateUpdateDeleteAudit(base.BaseInfraOptimTest):
 class TestShowListAudit(base.BaseInfraOptimTest):
     """Tests for audit."""
 
-    audit_states = ['ONGOING', 'SUCCEEDED', 'FAILED',
-                    'CANCELLED', 'DELETED', 'PENDING', 'SUSPENDED']
+    def setUp(self):
+        super(TestShowListAudit, self).setUp()
+        _, self.goal = self.client.show_goal("dummy")
+        _, self.audit_template = self.create_audit_template(self.goal['uuid'])
+        _, self.audit = self.create_audit(self.audit_template['uuid'])
 
-    @classmethod
-    def resource_setup(cls):
-        super(TestShowListAudit, cls).resource_setup()
-        _, cls.goal = cls.client.show_goal("dummy")
-        _, cls.audit_template = cls.create_audit_template(cls.goal['uuid'])
-        _, cls.audit = cls.create_audit(cls.audit_template['uuid'])
+        # Wait for audit to finish to prevent race conditions
+        # during cleanup when running tests with high concurrency
+        self.assertTrue(test_utils.call_until_true(
+            func=functools.partial(
+                self.has_audit_finished, self.audit['uuid']),
+            duration=30,
+            sleep_for=.5
+        ))
 
     def assert_expected(self, expected, actual,
                         keys=('created_at', 'updated_at',
@@ -277,7 +250,7 @@ class TestShowListAudit(base.BaseInfraOptimTest):
         audit_state = audit['state']
         actual_audit = audit.copy()
 
-        self.assertIn(audit_state, self.audit_states)
+        self.assertIn(audit_state, common_base.AuditStates.values())
         # hostname may be None if audit state is
         # CANCELLED/DELETED/PENDING/SUSPENDED
         if audit_state in ('ONGOING', 'SUCCEEDED', 'FAILED'):
