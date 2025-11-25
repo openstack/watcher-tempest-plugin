@@ -16,6 +16,10 @@
 
 import functools
 
+from datetime import datetime
+from datetime import timedelta
+from datetime import timezone
+
 from tempest.lib.common.utils import test_utils
 from tempest.lib import decorators
 from tempest.lib import exceptions
@@ -72,39 +76,6 @@ class TestCreateUpdateDeleteAudit(base.BaseInfraOptimTest):
         audit_params['goal_uuid'] = goal['uuid']
         self.assert_expected(audit_params, body)
         self.assertIn(body['state'], ('PENDING', 'ONGOING'))
-
-        _, audit = self.client.show_audit(body['uuid'])
-        self.assert_expected(audit, body)
-
-        self.cancel_audit(body['uuid'])
-
-        _, audit = self.client.show_audit(body['uuid'])
-        self.assertEqual(audit['state'], 'CANCELLED')
-
-    @decorators.attr(type='smoke')
-    @decorators.idempotent_id('f26573d6-4020-4971-8868-495bffde982e')
-    def test_create_audit_event(self):
-        _, descr = self.client.get_api_description()
-        if descr['versions']:
-            max_version = descr['versions'][0]['max_version']
-            # no EVENT type before microversion 1.4
-            if max_version < '1.4':
-                return
-
-        _, goal = self.client.show_goal("dummy")
-        _, audit_template = self.create_audit_template(goal['uuid'])
-
-        audit_params = dict(
-            audit_template_uuid=audit_template['uuid'],
-            audit_type='EVENT',
-            name='audit_event',
-        )
-
-        _, body = self.create_audit(**audit_params)
-        audit_params.pop('audit_template_uuid')
-        audit_params['goal_uuid'] = goal['uuid']
-        self.assert_expected(audit_params, body)
-        self.assertEqual(body['state'], 'PENDING')
 
         _, audit = self.client.show_audit(body['uuid'])
         self.assert_expected(audit, body)
@@ -214,6 +185,237 @@ class TestCreateUpdateDeleteAudit(base.BaseInfraOptimTest):
         )
 
         self.assertTrue(is_audit_deleted(audit_uuid))
+
+    @decorators.idempotent_id('c7a5e9f2-6b4c-4e5a-9d2e-1a0b3c4d5e6f')
+    def test_create_continuous_audit_with_crontab_interval(self):
+        """Test creating continuous audit with crontab-style interval"""
+        _, goal = self.client.show_goal("dummy")
+        _, strategy = self.client.show_strategy("dummy")
+
+        _, audit_template = self.create_audit_template(
+            goal['uuid'], strategy=strategy['uuid'])
+
+        cron_expr = '*/5 * * * *'  # every 5 minutes
+
+        audit_params = dict(
+            audit_template_uuid=audit_template['uuid'],
+            audit_type='CONTINUOUS',
+            interval=cron_expr,
+        )
+
+        _, body = self.create_audit(**audit_params)
+        audit_params.pop('audit_template_uuid')
+        audit_params['goal_uuid'] = goal['uuid']
+
+        # Verify the audit was created with correct parameters
+        self.assert_expected(audit_params, body)
+        self.assertIn(body['state'], ('PENDING', 'ONGOING'))
+
+        # Verify cron interval is accepted
+        self.assertEqual(body['interval'], cron_expr)
+        _, audit = self.client.show_audit(body['uuid'])
+        self.assert_expected(audit, body)
+
+
+class TestCreateUpdateDeleteAuditV11(base.BaseInfraOptimTest):
+    """Audit tests with microversion greater than 1.1"""
+    min_microversion = '1.1'
+
+    def assert_expected(self, expected, actual,
+                        keys=('created_at', 'updated_at', 'next_run_time',
+                              'deleted_at', 'state', 'hostname')):
+        super(TestCreateUpdateDeleteAuditV11, self).assert_expected(
+            expected, actual, keys)
+
+    @decorators.idempotent_id('4f8a2c1e-6b3d-4e5a-9c7b-1a2e3f4d5c6b')
+    def test_create_continuous_audit_with_start_end_time(self):
+        """Test creating continuous audit with start_time and end_time"""
+        _, goal = self.client.show_goal("dummy")
+        _, audit_template = self.create_audit_template(goal['uuid'])
+
+        # Set start time to current time + 10 seconds
+        start_time = datetime.now(tz=timezone.utc) + timedelta(seconds=10)
+
+        # Set end time to current time + 1 hour
+        end_time = datetime.now(tz=timezone.utc) + timedelta(hours=1)
+        start_time_str = start_time.strftime("%Y-%m-%dT%H:%M:%S")
+        end_time_str = end_time.strftime("%Y-%m-%dT%H:%M:%S")
+
+        audit_params = dict(
+            audit_template_uuid=audit_template['uuid'],
+            audit_type='CONTINUOUS',
+            interval='600',  # 10 minutes
+            start_time=start_time_str,
+            end_time=end_time_str,
+        )
+
+        _, body = self.create_audit(**audit_params)
+        audit_params.pop('audit_template_uuid')
+        audit_params['goal_uuid'] = goal['uuid']
+
+        # Verify the audit was created with correct parameters
+        self.assert_expected(audit_params, body)
+        self.assertIn(body['state'], ('PENDING', 'ONGOING'))
+
+        # Verify start_time and end_time are set correctly
+        if 'start_time' in body:
+            self.assertIsNotNone(body['start_time'])
+        if 'end_time' in body:
+            self.assertIsNotNone(body['end_time'])
+
+        _, audit = self.client.show_audit(body['uuid'])
+        self.assert_expected(audit, body)
+
+    @decorators.idempotent_id('a1b2c3d4-5e6f-7890-1234-567890abcdef')
+    def test_continuous_audit_actionplan_superseding(self):
+        """Test action plan superseding behavior in continuous audits.
+
+        Validates that when multiple action plans are created by the same
+        continuous audit, only the latest remains RECOMMENDED while
+        previous ones are automatically set to CANCELLED.
+        """
+        _, goal = self.client.show_goal("dummy")
+        _, strategy = self.client.show_strategy("dummy")
+        _, audit_template = self.create_audit_template(
+            goal['uuid'], strategy=strategy['uuid'])
+
+        audit_params = dict(
+            audit_template_uuid=audit_template['uuid'],
+            audit_type='CONTINUOUS',
+            interval='10',
+        )
+
+        _, body = self.create_audit(**audit_params)
+        audit_uuid = body['uuid']
+
+        # Wait for first action plan
+        self.assertTrue(test_utils.call_until_true(
+            func=functools.partial(self.has_action_plans, audit_uuid),
+            duration=300, sleep_for=10))
+
+        # Wait for multiple action plans (superseding behavior)
+        self.assertTrue(test_utils.call_until_true(
+            func=functools.partial(self._has_multiple_action_plans,
+                                   audit_uuid),
+            duration=180, sleep_for=10),
+            "Failed to generate multiple action plans for superseding test")
+
+        # Verify superseding: latest RECOMMENDED, previous CANCELLED
+        _, action_plans = self.client.list_action_plans_detail(
+            audit_uuid=audit_uuid)
+        all_aps = action_plans.get("action_plans", [])
+
+        # Count RECOMMENDED and CANCELLED action plans
+        recommended_state = common_base.IdleStates.RECOMMENDED.value
+        cancelled_state = common_base.IdleStates.CANCELLED.value
+
+        recommended_aps = [ap for ap in all_aps
+                           if ap.get('state') == recommended_state]
+
+        cancelled_aps = [ap for ap in all_aps
+                         if ap.get('state') == cancelled_state]
+
+        # Verify exactly one RECOMMENDED (the latest)
+        self.assertEqual(1, len(recommended_aps),
+                         "Should have exactly 1 RECOMMENDED action plan")
+
+        # Verify at least one CANCELLED (previous ones)
+        self.assertGreaterEqual(len(cancelled_aps), 1,
+                                "Should have at least 1 CANCELLED "
+                                "action plan")
+
+        # Verify the RECOMMENDED action plan is the latest one
+        recommended_ap = recommended_aps[0]
+        for cancelled_ap in cancelled_aps:
+            self.assertGreater(recommended_ap.get('created_at'),
+                               cancelled_ap.get('created_at'),
+                               "RECOMMENDED action plan should be created "
+                               "after CANCELLED ones")
+
+    @decorators.idempotent_id('d4e5f678-9012-3456-def0-456789012345')
+    def test_continuous_audit_interval_updates(self):
+        """Test runtime interval updates via PATCH."""
+        _, goal = self.client.show_goal("dummy")
+        _, strategy = self.client.show_strategy("dummy")
+        _, audit_template = self.create_audit_template(
+            goal['uuid'], strategy=strategy['uuid'])
+
+        audit_params = dict(
+            audit_template_uuid=audit_template['uuid'],
+            audit_type='CONTINUOUS',
+            interval='*/2 * * * *',
+        )
+        _, body = self.create_audit(**audit_params)
+        audit_uuid = body['uuid']
+
+        # Verify initial interval
+        _, initial_audit = self.client.show_audit(audit_uuid)
+        self.assertEqual("*/2 * * * *", initial_audit.get('interval'))
+
+        # Update interval and verify change
+        self.client.update_audit(audit_uuid, [
+            {"op": "replace", "path": "/interval", "value": "*/1 * * * *"}])
+        _, updated_audit = self.client.show_audit(audit_uuid)
+
+        self.assertEqual("*/1 * * * *", updated_audit.get('interval'))
+
+    @decorators.idempotent_id('e5f6a789-0123-4567-ef01-567890123456')
+    def test_continuous_audit_crontab_formats(self):
+        """Test various crontab expression formats."""
+        _, goal = self.client.show_goal("dummy")
+        _, strategy = self.client.show_strategy("dummy")
+
+        test_formats = [
+            ("*/1 * * * *", "every minute"),
+            ("0 * * * *", "hourly"),
+            ("30 */2 * * *", "every 2 hours at :30"),
+            ("0 9 * * *", "daily at 9 AM")
+        ]
+
+        for cron_expr, description in test_formats:
+            with self.subTest(cron_expr=cron_expr, description=description):
+                _, test_audit_template = self.create_audit_template(
+                    goal['uuid'], strategy=strategy['uuid'])
+
+                test_audit_params = dict(
+                    audit_template_uuid=test_audit_template['uuid'],
+                    audit_type='CONTINUOUS',
+                    interval=cron_expr,
+                )
+
+                _, test_body = self.create_audit(**test_audit_params)
+
+                _, created_audit = self.client.show_audit(test_body['uuid'])
+                self.assertEqual(cron_expr, created_audit.get('interval'))
+
+
+class TestCreateUpdateDeleteAuditV14(base.BaseInfraOptimTest):
+    """Audit tests with microversion greater than 1.4"""
+    min_microversion = '1.4'
+
+    @decorators.attr(type='smoke')
+    @decorators.idempotent_id('f26573d6-4020-4971-8868-495bffde982e')
+    def test_create_audit_event(self):
+        """Test Event Audit"""
+        _, goal = self.client.show_goal("dummy")
+        _, audit_template = self.create_audit_template(goal['uuid'])
+        audit_params = dict(
+            audit_template_uuid=audit_template['uuid'],
+            audit_type='EVENT',
+        )
+
+        _, body = self.create_audit(**audit_params)
+        audit_params.pop('audit_template_uuid')
+        audit_params['goal_uuid'] = goal['uuid']
+        self.assert_expected(audit_params, body)
+        self.assertEqual(body['state'], 'PENDING')
+
+        _, audit = self.client.show_audit(body['uuid'])
+        self.assert_expected(audit, body)
+        self.cancel_audit(body['uuid'])
+
+        _, audit = self.client.show_audit(body['uuid'])
+        self.assertEqual(audit['state'], 'CANCELLED')
 
 
 class TestShowListAudit(base.BaseInfraOptimTest):

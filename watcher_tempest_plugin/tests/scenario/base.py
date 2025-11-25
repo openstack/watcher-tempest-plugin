@@ -864,10 +864,6 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest,
 
     # ### ACTION PLANS ### #
 
-    def has_action_plans(self, audit_uuid=None):
-        _, action_plans = self.client.list_action_plans(audit_uuid=audit_uuid)
-        return len(action_plans['action_plans']) > 0
-
     def has_action_plan_finished(self, action_plan_uuid):
         _, action_plan = self.client.show_action_plan(action_plan_uuid)
         return action_plan.get('state') in self.ACTIONPLAN_FINISHED_STATES

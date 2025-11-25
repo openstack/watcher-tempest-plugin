@@ -355,3 +355,21 @@ class WatcherHelperMixin:
             # Action plan might already be deleted
             resp = None
         return resp
+
+    def has_action_plans(self, audit_uuid=None):
+        """Check if there are any action plans for the given audit.
+
+        :param audit_uuid: The unique identifier of the audit (optional).
+        :return: True if action plans exist, False otherwise
+        """
+        _, action_plans = self.client.list_action_plans(audit_uuid=audit_uuid)
+        return len(action_plans['action_plans']) > 0
+
+    def _has_multiple_action_plans(self, audit_uuid):
+        """Check if there are multiple action plans for the given audit.
+
+        :param audit_uuid: The unique identifier of the audit.
+        :return: True if multiple action plans exist, False otherwise
+        """
+        _, action_plans = self.client.list_action_plans(audit_uuid=audit_uuid)
+        return len(action_plans['action_plans']) > 1
