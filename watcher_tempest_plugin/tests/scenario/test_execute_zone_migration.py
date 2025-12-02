@@ -81,6 +81,10 @@ class TestExecuteZoneMigrationStrategy(TestZoneMigrationStrategyBase):
     @decorators.idempotent_id('e4f192ca-26d4-4e38-bb86-4be4aeaabb24')
     @decorators.attr(type=['strategy', 'zone_migration'])
     def test_execute_zone_migration_without_destination_host(self):
+        if not CONF.optimize.run_zone_migration_extra_tests:
+            raise self.skipException(
+                "Extra tests for zone migration are not enabled."
+            )
         # This test requires metrics injection
         self.check_min_enabled_compute_nodes(2)
         self.addCleanup(self.wait_delete_instances_from_model)
@@ -116,6 +120,10 @@ class TestExecuteZoneMigrationStrategyVolume(TestZoneMigrationStrategyBase):
         super().skip_checks()
         if not CONF.service_available.cinder:
             raise cls.skipException("Cinder is not available")
+        if not CONF.optimize.run_zone_migration_storage_tests:
+            raise cls.skipException(
+                "Storage tests for zone migration are not enabled."
+            )
 
     def get_host_for_volume(self, volume_id):
         """Gets host of volume"""
