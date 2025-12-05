@@ -482,6 +482,7 @@ class TestShowListAudit(base.BaseInfraOptimTest):
 
     @decorators.attr(type='smoke')
     @decorators.idempotent_id('5175607c-f2df-4df6-9168-45c789b4a6ea')
+    @decorators.skip_because(bug="2134046")
     def test_list_with_limit(self):
         # We create 3 extra audits to exceed the limit we fix
         for _ in range(3):
