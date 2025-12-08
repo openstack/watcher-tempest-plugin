@@ -107,6 +107,15 @@ class TestContinuousAudit(base.BaseInfraOptimScenarioTest):
             audit_uuid=audit["uuid"])
         action_plan = action_plans["action_plans"][0]
 
+        try:
+            self.assertTrue(test_utils.call_until_true(
+                func=functools.partial(
+                    self.has_action_plan_finished, action_plan["uuid"]),
+                duration=60,
+                sleep_for=2
+            ))
+        except ValueError:
+            self.fail("Action plan failed to reach a finished state.")
         # Since a new run of the continuous audit will change the last
         # action plan to CANCELLED. It is hard to guarantee that we will
         # always have a SUCCEEDED action plan.
