@@ -7,17 +7,20 @@
       - release-notes-jobs-python3
     check:
       jobs:
-        - watcher-tempest-functional
-        - watcher-tempest-actuator
-        - watcher-tempest-strategies
-        - watcher-prometheus-integration
-        - watcher-aetos-integration
+        - watcher-tempest-aetos
+        - watcher-tempest-gnocchi
+        - watcher-tempest-prometheus
         - watcher-tempest-functional-2025-2
         - watcher-tempest-functional-2025-1
         - watcher-tempest-functional-2024-2
     gate:
       jobs:
-        - watcher-tempest-functional
+        - watcher-tempest-aetos
+        - watcher-tempest-gnocchi
+        - watcher-tempest-prometheus
+        - watcher-tempest-functional-2025-2
+        - watcher-tempest-functional-2025-1
+        - watcher-tempest-functional-2024-2
     experimental:
       jobs:
         - watcher-prometheus-integration-realdata
