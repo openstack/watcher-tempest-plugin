@@ -23,8 +23,8 @@
         - watcher-tempest-functional-2024-2
     experimental:
       jobs:
-        - watcher-prometheus-integration-realdata
-        - watcher-aetos-integration-realdata
+        - watcher-tempest-prometheus-realdata
+        - watcher-tempest-aetos-realdata
 
 - job:
     name: watcher-tempest-functional-2025-2
