@@ -144,4 +144,15 @@ OptimizationGroup = [
              "`watcher_cluster_data_model_collectors` period configuration is "
              "less than 300 seconds."
     ),
+    cfg.BoolOpt(
+        "run_zone_migration_extra_tests",
+        default=False,
+        help="Whether or not to run extra zone migration tests that test"
+             "migration without specified destination nodes."
+    ),
+    cfg.BoolOpt(
+        "run_zone_migration_storage_tests",
+        default=False,
+        help="Whether or not to run storage zone migration tests."
+    ),
 ]
