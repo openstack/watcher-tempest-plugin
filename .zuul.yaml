@@ -10,36 +10,50 @@
         - watcher-tempest-aetos
         - watcher-tempest-gnocchi
         - watcher-tempest-prometheus
-        - watcher-tempest-functional-2025-2
-        - watcher-tempest-functional-2025-1
-        - watcher-tempest-functional-2024-2
+        - watcher-tempest-aetos-2025-2
+        - watcher-tempest-gnocchi-2025-2
+        - watcher-tempest-gnocchi-2025-1
+        - watcher-tempest-prometheus-2025-1
+        - watcher-tempest-gnocchi-2024-2
     gate:
       jobs:
         - watcher-tempest-aetos
         - watcher-tempest-gnocchi
         - watcher-tempest-prometheus
-        - watcher-tempest-functional-2025-2
-        - watcher-tempest-functional-2025-1
-        - watcher-tempest-functional-2024-2
+        - watcher-tempest-aetos-2025-2
+        - watcher-tempest-gnocchi-2025-2
+        - watcher-tempest-gnocchi-2025-1
+        - watcher-tempest-prometheus-2025-1
+        - watcher-tempest-gnocchi-2024-2
     experimental:
       jobs:
         - watcher-tempest-prometheus-realdata
         - watcher-tempest-aetos-realdata
 
+# stable/2025.2 jobs
 - job:
-    name: watcher-tempest-functional-2025-2
-    parent: watcher-tempest-functional
-    nodeset: openstack-single-node-noble
+    name: watcher-tempest-aetos-2025-2
+    parent: watcher-tempest-aetos
     override-checkout: stable/2025.2
 
 - job:
-    name: watcher-tempest-functional-2025-1
-    parent: watcher-tempest-functional
-    nodeset: openstack-single-node-noble
+    name: watcher-tempest-gnocchi-2025-2
+    parent: watcher-tempest-gnocchi
+    override-checkout: stable/2025.2
+
+# stable/2025.1 jobs
+- job:
+    name: watcher-tempest-gnocchi-2025-1
+    parent: watcher-tempest-gnocchi
     override-checkout: stable/2025.1
 
 - job:
-    name: watcher-tempest-functional-2024-2
-    parent: watcher-tempest-functional
-    nodeset: openstack-single-node-jammy
+    name: watcher-tempest-prometheus-2025-1
+    parent: watcher-tempest-prometheus
+    override-checkout: stable/2025.1
+
+# stable/2024.2 jobs
+- job:
+    name: watcher-tempest-gnocchi-2024-2
+    parent: watcher-tempest-gnocchi
     override-checkout: stable/2024.2
