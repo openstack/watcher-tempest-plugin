@@ -119,7 +119,8 @@ class TestContinuousAudit(base.BaseInfraOptimScenarioTest):
         # Since a new run of the continuous audit will change the last
         # action plan to CANCELLED. It is hard to guarantee that we will
         # always have a SUCCEEDED action plan.
-        self.assertIn(action_plan['state'], ('SUCCEEDED', 'CANCELLED'))
+        _, action_plan = self.client.show_action_plan(action_plan["uuid"])
+        self.assertIn(action_plan.get('state'), ('SUCCEEDED', 'CANCELLED'))
 
         # Action plan should have no actions
         created_actions = self.client.list_actions(
