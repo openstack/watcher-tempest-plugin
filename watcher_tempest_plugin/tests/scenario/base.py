@@ -265,7 +265,7 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest,
     @classmethod
     def _are_all_action_plans_finished(cls):
         _, action_plans = cls.client.list_action_plans()
-        return all([ap['state'] in cls.ACTIONPLAN_FINISHED_STATES
+        return all([ap['state'] in cls.ACTIONPLAN_FINISHED_STATES.values()
                     for ap in action_plans['action_plans']])
 
     def check_min_enabled_compute_nodes(self, min_nodes):
@@ -855,7 +855,7 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest,
     @classmethod
     def has_audit_finished(cls, audit_uuid):
         _, audit = cls.client.show_audit(audit_uuid)
-        return audit.get('state') in cls.AUDIT_FINISHED_STATES
+        return audit.get('state') in cls.AUDIT_FINISHED_STATES.values()
 
     @classmethod
     def is_audit_ongoing(cls, audit_uuid):
@@ -866,14 +866,15 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest,
 
     def has_action_plan_finished(self, action_plan_uuid):
         _, action_plan = self.client.show_action_plan(action_plan_uuid)
-        return action_plan.get('state') in self.ACTIONPLAN_FINISHED_STATES
+        return action_plan.get(
+            'state') in self.ACTIONPLAN_FINISHED_STATES.values()
 
     def has_action_plans_finished(self):
         _, action_plans = self.client.list_action_plans()
         for ap in action_plans['action_plans']:
             _, action_plan = self.client.show_action_plan(ap['uuid'])
             if (action_plan.get('state') not in
-                    self.ACTIONPLAN_FINISHED_STATES):
+                    self.ACTIONPLAN_FINISHED_STATES.values()):
                 return False
         return True
 
