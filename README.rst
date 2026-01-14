@@ -2,6 +2,10 @@
 watcher-tempest-plugin
 ======================
 
+.. image:: https://governance.openstack.org/tc/badges/watcher-tempest-plugin.svg
+
+.. Change things from this point on
+
 This repository contains a `Tempest`_ `test plugin`_ to verify the
 functionality of the `Watcher`_ service.
 
