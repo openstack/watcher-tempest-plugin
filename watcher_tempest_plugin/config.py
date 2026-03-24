@@ -96,6 +96,13 @@ OptimizationGroup = [
         help="The label that Prometheus uses to store the fqdn of "
              "exporters.",
     ),
+    cfg.StrOpt(
+        "prometheus_write_path",
+        default="/api/v1/write",
+        help="The URL path to append to the Prometheus base URL for "
+             "remote write operations. Set to an empty string if the "
+             "base URL already includes the full write endpoint.",
+    ),
     # Podified control plane configuration
     cfg.StrOpt(
         "podified_kubeconfig_path",

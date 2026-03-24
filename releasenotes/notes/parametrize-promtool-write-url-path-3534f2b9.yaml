@@ -1,0 +1,8 @@
+---
+features:
+  - |
+    Added a new ``prometheus_write_path`` configuration option under the
+    ``[optimize]`` section to allow customizing the URL path appended to the
+    Prometheus base URL for remote write operations. The default value is
+    ``/api/v1/write``, preserving the existing behavior. Set it to an empty
+    string if the base URL already includes the full write endpoint.

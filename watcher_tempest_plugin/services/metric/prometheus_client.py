@@ -13,9 +13,9 @@
 # under the License.
 
 import json
+from urllib import parse
 
 from oslo_log import log
-from urllib.parse import quote
 
 from watcher_tempest_plugin.services import base
 
@@ -31,8 +31,32 @@ class PromtoolClient:
                  proxy_host_pkey=None, proxy_host_pkey_type='rsa',
                  podified_ns=None, podified_kubeconfig=None,
                  prometheus_ssl_cert=None,
-                 prometheus_fqdn_label="fqdn"):
+                 prometheus_fqdn_label="fqdn",
+                 write_url_path=None):
+        """Initialize PromtoolClient.
 
+        :param url: Base URL of the Prometheus server (e.g.
+          'http://host:9090').
+        :param promtool_path: Path to the promtool binary.
+        :param openstack_type: Deployment type; use 'podified' for
+          Podified Control Plane deployments, 'devstack' otherwise.
+        :param proxy_host_address: Optional SSH proxy host address. When
+          provided together with proxy_host_user, commands are executed
+          over SSH instead of locally.
+        :param proxy_host_user: SSH username for the proxy host.
+        :param proxy_host_pkey: Path to the SSH private key file.
+        :param proxy_host_pkey_type: Type of the SSH private key
+          (default: 'rsa').
+        :param podified_ns: Kubernetes namespace for podified deployments.
+        :param podified_kubeconfig: Path to the kubeconfig file for
+          podified deployments.
+        :param prometheus_ssl_cert: Directory containing SSL certificates
+          used when connecting to Prometheus over HTTPS.
+        :param prometheus_fqdn_label: Prometheus label used to identify
+          host FQDNs in target metadata (default: 'fqdn').
+        :param write_url_path: URL path for the remote-write endpoint
+          (default: '/api/v1/write').
+        """
         # Podified Control Plane
         self.is_podified = ("podified" == openstack_type)
         LOG.debug(f"Configuring PromtoolClient for {openstack_type} "
@@ -61,12 +85,23 @@ class PromtoolClient:
             cmd_prefix = self.oc_cmd + ["rsh", self.prometheus_pod]
             self.client.cmd_prefix = " ".join(cmd_prefix)
 
+        # We keep the raw URL for reference/labels
         self.prometheus_url = url
-        self.prometheus_write_url = url + "/api/v1/write"
-        self.prometheus_delete_series_url = (
-            url + "/api/v1/admin/tsdb/delete_series")
+
+        # Internal base_url ensuring a trailing slash for reliable joining
+        base_url = url if url.endswith('/') else url + '/'
+
+        # Handle write_url_path: handles None/Empty and leading slash issues
+        clean_write_path = (write_url_path or "").lstrip('/')
+        self.prometheus_write_url = parse.urljoin(base_url, clean_write_path)
+
+        self.prometheus_delete_series_url = parse.urljoin(
+            base_url, "api/v1/admin/tsdb/delete_series"
+        )
         # active targets
-        self.prometheus_targets_url = url + "/api/v1/targets?state=active"
+        self.prometheus_targets_url = parse.urljoin(
+            base_url, "api/v1/targets?state=active"
+        )
         self.prometheus_fqdn_label = prometheus_fqdn_label
         self.promtool_cmd = [promtool_path]
         if prometheus_ssl_cert:
@@ -137,7 +172,7 @@ class PromtoolClient:
         # with double quotes both on direct command and
         # ssh command so using url encoding
 
-        quoted_expr = quote(expr)
+        quoted_expr = parse.quote(expr)
 
         cmd = ['curl', '-s', '-k', '-X', 'POST', '-g',
                self.prometheus_delete_series_url + '?match[]=' + quoted_expr]

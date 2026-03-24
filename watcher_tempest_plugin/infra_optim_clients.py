@@ -55,6 +55,7 @@ class BaseManager(clients.Manager, metaclass=abc.ABCMeta):
             podified_kubeconfig=CONF.optimize.podified_kubeconfig_path,
             prometheus_ssl_cert=CONF.optimize.prometheus_ssl_cert_dir,
             prometheus_fqdn_label=CONF.optimize.prometheus_fqdn_label,
+            write_url_path=CONF.optimize.prometheus_write_path,
         )
 
 
