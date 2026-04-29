@@ -23,8 +23,9 @@ from watcher_tempest_plugin.tests.scenario import base
 CONF = config.CONF
 
 
-class TestExecuteVmWorkloadBalanceStrategy(base.BaseInfraOptimScenarioTest):
-    """Tests for action plans"""
+class TestExecuteVmWorkloadConsolidationStrategyBase(
+        base.BaseInfraOptimScenarioTest):
+    """Base class for vm_workload_consolidation tests"""
 
     # Minimal version required for list data models
     min_microversion = "1.3"
@@ -42,6 +43,11 @@ class TestExecuteVmWorkloadBalanceStrategy(base.BaseInfraOptimScenarioTest):
                 "Less than 2 compute nodes, skipping multinode tests.")
         if not CONF.compute_feature_enabled.live_migration:
             raise cls.skipException("Live migration is not enabled")
+
+
+class TestExecuteVmWorkloadConsolidationStrategy(
+        TestExecuteVmWorkloadConsolidationStrategyBase):
+    """Tests for vm_workload_consolidation"""
 
     @decorators.attr(type=['strategy', 'vm_workload_consolidation'])
     @decorators.idempotent_id('9f3ee978-e033-4c1e-bbf2-9e5a5cb8a365')
@@ -66,6 +72,80 @@ class TestExecuteVmWorkloadBalanceStrategy(base.BaseInfraOptimScenarioTest):
             'instance_root_disk_size': {},
         }
         instances = self._create_one_instance_per_host()
+        # wait for compute model updates
+        self.wait_for_instances_in_model(instances)
+        self.make_host_statistic()
+        for instance in instances:
+            self.make_instance_statistic(instance, metrics=metrics)
+
+        audit_template = self.create_audit_template_for_strategy()
+
+        audit_kwargs = {
+            "parameters": {
+                "period": 300,
+            }
+        }
+
+        audit = self.create_audit_and_wait(
+            audit_template['uuid'], **audit_kwargs)
+
+        action_plan, _ = self.get_action_plan_and_validate_actions(
+            audit['uuid'], ['change_nova_service_state', 'migrate'])
+
+        self.assertEqual("RECOMMENDED", action_plan['state'])
+
+        self.execute_action_plan_and_validate_states(action_plan['uuid'])
+
+
+class TestExecuteVmWorkloadConsolidationStrategyBfV(
+        TestExecuteVmWorkloadConsolidationStrategyBase):
+    """Tests for vm_workload_consolidation with boot from volume instances"""
+
+    @classmethod
+    def skip_checks(cls):
+        super().skip_checks()
+        if not CONF.service_available.cinder:
+            raise cls.skipException("Cinder is not available")
+        if not CONF.optimize.run_bfv_tests:
+            raise cls.skipException(
+                "Boot from volume tests are not enabled."
+            )
+
+    @decorators.attr(type=['strategy', 'vm_workload_consolidation'])
+    @decorators.idempotent_id('38d631f4-8204-4d1f-98a3-72dfcee27833')
+    def test_execute_vm_workload_consolidation_strategy_with_specify_bfv(self):
+        # Watcher vm workload consolidation strategy calculates the disk usage
+        # for hosts based on the disk size of the instances.
+        # In Boot from Volume instances, the accounting
+        # of local disk differs from boot from image as root disk is not
+        # taken from the compute node local disk. This test is intended to
+        # validate this case by creating a flavor with disk size larger than
+        # the available disk in the destination host.
+
+        # This test requires metrics injection
+        self.check_min_enabled_compute_nodes(2)
+        self.addCleanup(self.rollback_compute_nodes_status)
+        self.addCleanup(self.wait_delete_instances_from_model)
+        self.addCleanup(self.clean_injected_metrics)
+        metrics = {
+            'instance_cpu_usage': {},
+            'instance_ram_usage': {},
+            'instance_ram_allocated': {},
+            'instance_root_disk_size': {},
+        }
+
+        # Create a flavor with disk size larger than the available disk
+        host = self.get_enabled_compute_nodes()[0]['host']
+        hypervisor = self.get_hypervisor_details(host)
+        disk_inventory = self.get_resource_provider_inventory(
+            hypervisor['id'])['DISK_GB']
+        available_disk = (disk_inventory['total']
+                          * disk_inventory['allocation_ratio'])
+        flavor_disk = int(available_disk) + 2
+        flavor_id = self._create_custom_flavor(disk=flavor_disk)
+
+        instances = self._create_one_instance_per_host(
+            flavor=flavor_id, boot_from_volume=True)
         # wait for compute model updates
         self.wait_for_instances_in_model(instances)
         self.make_host_statistic()

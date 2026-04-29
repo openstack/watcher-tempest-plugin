@@ -20,7 +20,7 @@ from watcher_tempest_plugin.tests.scenario import base
 CONF = config.CONF
 
 
-class TestExecuteWorkloadStabilizationStrategy(
+class TestExecuteWorkloadStabilizationStrategyBase(
         base.BaseInfraOptimScenarioTest):
     """Tests for workload_stabilization"""
 
@@ -40,6 +40,11 @@ class TestExecuteWorkloadStabilizationStrategy(
                 "Less than 2 compute nodes, skipping multinode tests.")
         if not CONF.compute_feature_enabled.live_migration:
             raise cls.skipException("Live migration is not enabled")
+
+
+class TestExecuteWorkloadStabilizationStrategy(
+        TestExecuteWorkloadStabilizationStrategyBase):
+    """Tests for workload_stabilization"""
 
     @decorators.attr(type=['strategy', 'workload_stabilization'])
     @decorators.idempotent_id('14360d59-4923-49f7-bfe5-31d6a819b6f7')
@@ -93,6 +98,76 @@ class TestExecuteWorkloadStabilizationStrategy(
         instances = []
         for _ in range(2):
             instance = self._create_instance(host=host)
+            instances.append(instance)
+
+        # wait for compute model updates
+        self.wait_for_instances_in_model(instances)
+        self.make_host_statistic(loaded_hosts=[host])
+        for instance in instances:
+            # Inject metrics after the instances are created
+            self.make_instance_statistic(instance)
+
+        audit_template = self.create_audit_template_for_strategy()
+
+        audit_parameters = {
+            "metrics": ["instance_ram_usage"],
+            "thresholds": {"instance_ram_usage": 0.05},
+            "periods": {"instance": 400, "compute_node": 300}}
+        audit_kwargs = {"parameters": audit_parameters}
+
+        audit = self.create_audit_and_wait(
+            audit_template['uuid'], **audit_kwargs)
+
+        action_plan, _ = self.get_action_plan_and_validate_actions(
+            audit['uuid'], expected_action_types=['migrate'])
+
+        self.assertEqual("RECOMMENDED", action_plan['state'])
+
+        self.execute_action_plan_and_validate_states(action_plan['uuid'])
+
+
+class TestExecuteWorkloadStabilizationStrategyBfV(
+        TestExecuteWorkloadStabilizationStrategyBase):
+    """Tests for workload_stabilization with boot from volume instances"""
+
+    @classmethod
+    def skip_checks(cls):
+        super().skip_checks()
+        if not CONF.service_available.cinder:
+            raise cls.skipException("Cinder is not available")
+        if not CONF.optimize.run_bfv_tests:
+            raise cls.skipException(
+                "Boot from volume tests are not enabled."
+            )
+
+    @decorators.attr(type=['strategy', 'workload_stabilization'])
+    @decorators.idempotent_id('1690be77-6fd5-45cd-8834-3fb498d261a7')
+    def test_execute_workload_stabilization_strategy_ram_bfv(self):
+        # Watcher workload stabilization strategy checks available disk in the
+        # destination host. In Boot from Volume instances, the accounting
+        # of local disk differs from boot from image as root disk is not
+        # taken from the compute node local disk. This test is intended to
+        # validate this case by creating a flavor with disk size larger than
+        # the available disk in the destination host.
+
+        # This test requires metrics injection
+        self.check_min_enabled_compute_nodes(2)
+        self.addCleanup(self.wait_delete_instances_from_model)
+        self.addCleanup(self.clean_injected_metrics)
+        host = self.get_enabled_compute_nodes()[0]['host']
+        hypervisor = self.get_hypervisor_details(host)
+        # Let's create the flavor with disk size larger than the available disk
+        disk_inventory = self.get_resource_provider_inventory(
+            hypervisor['id'])['DISK_GB']
+        available_disk = (disk_inventory['total']
+                          * disk_inventory['allocation_ratio'])
+        flavor_disk = int(available_disk) + 2
+        flavor_id = self._create_custom_flavor(disk=flavor_disk)
+
+        instances = []
+        for _ in range(2):
+            instance = self._create_instance(
+                host=host, flavor=flavor_id, boot_from_volume=True)
             instances.append(instance)
 
         # wait for compute model updates

@@ -24,8 +24,8 @@ CONF = config.CONF
 LOG = log.getLogger(__name__)
 
 
-class TestExecuteHostMaintenanceStrategy(base.BaseInfraOptimScenarioTest):
-    """Tests for host_maintenance"""
+class TestExecuteHostMaintenanceStrategyBase(base.BaseInfraOptimScenarioTest):
+    """Base class for host_maintenance tests"""
 
     # Minimal version required for list data models
     min_microversion = "1.3"
@@ -43,6 +43,11 @@ class TestExecuteHostMaintenanceStrategy(base.BaseInfraOptimScenarioTest):
                 "Less than 2 compute nodes, skipping multinode tests.")
         if not CONF.compute_feature_enabled.live_migration:
             raise cls.skipException("Live migration is not enabled")
+
+
+class TestExecuteHostMaintenanceStrategy(
+        TestExecuteHostMaintenanceStrategyBase):
+    """Tests for host_maintenance"""
 
     @decorators.idempotent_id('17afd352-1929-46dd-a10a-63c90bb9255d')
     @decorators.attr(type=['strategy', 'host_maintenance'])
@@ -105,6 +110,81 @@ class TestExecuteHostMaintenanceStrategy(base.BaseInfraOptimScenarioTest):
 
         self.assertEqual("RECOMMENDED", action_plan['state'])
 
+        self.execute_action_plan_and_validate_states(action_plan['uuid'])
+
+        # Make sure server is migrated to backup node
+        self.assertEqual(
+            self.get_host_for_server(instances[0]['id']),
+            dst_node
+        )
+
+
+class TestExecuteHostMaintenanceStrategyBfV(
+        TestExecuteHostMaintenanceStrategyBase):
+    """Tests for host_maintenance with boot from volume instances"""
+
+    @classmethod
+    def skip_checks(cls):
+        super().skip_checks()
+        if not CONF.service_available.cinder:
+            raise cls.skipException("Cinder is not available")
+        if not CONF.optimize.run_bfv_tests:
+            raise cls.skipException(
+                "Boot from volume tests are not enabled."
+            )
+
+    @decorators.attr(type=['strategy', 'host_maintenance'])
+    @decorators.idempotent_id('c2da0904-2acd-4ab8-bf88-f62294856bb6')
+    def test_execute_host_maintenance_strategy_backup_node_bfv(self):
+        # Watcher host maintenance strategy checks if the instance fits
+        # in the destination host when using the backup node.
+        # In Boot from Volume instances, the accounting
+        # of local disk differs from boot from image as root disk is not
+        # taken from the compute node local disk. This test is intended to
+        # validate this case by creating a flavor with disk size larger than
+        # the available disk in the destination host.
+
+        # This test does not require metrics injection
+        self.check_min_enabled_compute_nodes(2)
+        self.addCleanup(self.rollback_compute_nodes_status)
+        self.addCleanup(self.wait_delete_instances_from_model)
+        # Create a flavor with disk size larger than the available disk
+        host = self.get_enabled_compute_nodes()[0]['host']
+        hypervisor = self.get_hypervisor_details(host)
+        disk_inventory = self.get_resource_provider_inventory(
+            hypervisor['id'])['DISK_GB']
+        available_disk = (disk_inventory['total']
+                          * disk_inventory['allocation_ratio'])
+        flavor_disk = int(available_disk) + 2
+        flavor_id = self._create_custom_flavor(disk=flavor_disk)
+
+        instances = self._create_one_instance_per_host(
+            flavor=flavor_id, boot_from_volume=True)
+        # wait for compute model updates
+        self.wait_for_instances_in_model(instances)
+
+        src_node = self.get_host_for_server(instances[0]['id'])
+        dst_node = self.get_host_other_than(instances[0]['id'])
+
+        audit_kwargs = {
+            "parameters": {
+                "maintenance_node": src_node,
+                "backup_node": dst_node
+            }
+        }
+
+        audit_template = self.create_audit_template_for_strategy()
+
+        audit = self.create_audit_and_wait(
+            audit_template['uuid'], **audit_kwargs)
+
+        action_plan, _ = self.get_action_plan_and_validate_actions(
+            audit['uuid'], ['change_nova_service_state', 'migrate'])
+
+        self.assertEqual("RECOMMENDED", action_plan['state'])
+
+        # This test is starting and validating the success of the action plan
+        # to validate the actual live migration works in BfV instances.
         self.execute_action_plan_and_validate_states(action_plan['uuid'])
 
         # Make sure server is migrated to backup node
