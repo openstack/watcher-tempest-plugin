@@ -122,7 +122,7 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest,
         super(BaseInfraOptimScenarioTest, cls).setup_clients()
         cls.client = cls.mgr.io_client
         cls.gnocchi = cls.mgr.gn_client
-        cls.placement_client = cls.mgr.placement_client
+        cls.resource_providers_client = cls.mgr.resource_providers_client
         cls.prometheus_client = cls.mgr.prometheus_client
         cls.flavors_client = cls.mgr.flavors_client
 
@@ -1034,11 +1034,9 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest,
         :param trait: node trait
         :return: True if node has the trait else False
         """
-        traits = self.placement_client.list_provider_traits(node_id)
-        if trait in traits.get('traits'):
-            return True
-        else:
-            return False
+        traits = self.resource_providers_client.list_resource_provider_traits(
+            node_id)
+        return trait in traits.get('traits', [])
 
     def get_resource_provider_inventory(self, res_id):
         """Get resource provider details for a node
@@ -1046,9 +1044,10 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest,
         :param res_id: The unique identifier of the resource provider.
         :return: Resource provider inventory
         """
-        inventories = self.placement_client.list_provider_inventory(
-            res_id)['inventories']
-        return inventories
+        inventories = (
+            self.resource_providers_client
+            .list_resource_provider_inventories(res_id))
+        return inventories.get('inventories', {})
 
     def wait_for_instances_in_model(self, instances, timeout=300):
         """Waits until all instance ids are mapped to a model.
