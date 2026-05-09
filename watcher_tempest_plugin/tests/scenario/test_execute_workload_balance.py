@@ -24,7 +24,7 @@ CONF = config.CONF
 LOG = log.getLogger(__name__)
 
 
-class TestExecuteWorkloadBalanceStrategy(base.BaseInfraOptimScenarioTest):
+class TestExecuteWorkloadBalanceStrategyBase(base.BaseInfraOptimScenarioTest):
     """Tests for workload_balance"""
 
     # Minimal version required for list data models
@@ -44,6 +44,11 @@ class TestExecuteWorkloadBalanceStrategy(base.BaseInfraOptimScenarioTest):
         if not CONF.compute_feature_enabled.live_migration:
             raise cls.skipException("Live migration is not enabled")
 
+
+class TestExecuteWorkloadBalanceStrategy(
+        TestExecuteWorkloadBalanceStrategyBase):
+    """Tests for workload_balance"""
+
     @decorators.attr(type=['strategy', 'workload_balance'])
     @decorators.idempotent_id('64a9293f-0f81-431c-afae-ecabebae53f1')
     def test_execute_workload_balance_strategy_cpu(self):
@@ -55,8 +60,9 @@ class TestExecuteWorkloadBalanceStrategy(base.BaseInfraOptimScenarioTest):
         hypervisor = self.get_hypervisor_details(host)
         instances = []
         created_instances = 2
+        flavor_id = self._create_custom_flavor(ephemeral=1, swap=128)
         for _ in range(created_instances):
-            instance = self._create_instance(host)
+            instance = self._create_instance(host, flavor=flavor_id)
             instances.append(instance)
 
         # wait for compute model updates
@@ -119,6 +125,84 @@ class TestExecuteWorkloadBalanceStrategy(base.BaseInfraOptimScenarioTest):
         audit_parameters = {
             "metrics": "instance_ram_usage",
             "threshold": 18,
+            "period": 300,
+            "granularity": 300}
+
+        audit_kwargs = {"parameters": audit_parameters}
+
+        audit_template = self.create_audit_template_for_strategy()
+
+        audit = self.create_audit_and_wait(
+            audit_template['uuid'], **audit_kwargs)
+
+        action_plan, _ = self.get_action_plan_and_validate_actions(
+            audit['uuid'], ['migrate'])
+
+        self.assertEqual("RECOMMENDED", action_plan['state'])
+
+        self.execute_action_plan_and_validate_states(action_plan['uuid'])
+
+
+class TestExecuteWorkloadBalanceStrategyBfV(
+        TestExecuteWorkloadBalanceStrategyBase):
+    """Tests for workload_balance with boot from volume instances"""
+
+    @classmethod
+    def skip_checks(cls):
+        super().skip_checks()
+        if not CONF.service_available.cinder:
+            raise cls.skipException("Cinder is not available")
+        if not CONF.optimize.run_bfv_tests:
+            raise cls.skipException(
+                "Boot from volume tests are not enabled."
+            )
+
+    @decorators.attr(type=['strategy', 'workload_balance'])
+    @decorators.idempotent_id('5686b82d-462b-4298-bdb7-563309406848')
+    def test_execute_workload_balance_strategy_cpu_bfv(self):
+        # Watcher worklkoad balance strategy checks available disk in the
+        # destination host. In Boot from Volume instances, the accounting
+        # of local disk differs from boot from image as root disk is not
+        # taken from the compute node local disk. This test is intended to
+        # validate this case by creating a flavor with disk size larger than
+        # the available disk in the destination host.
+
+        # This test requires metrics injection
+        self.check_min_enabled_compute_nodes(2)
+        self.addCleanup(self.wait_delete_instances_from_model)
+        self.addCleanup(self.clean_injected_metrics)
+        host = self.get_enabled_compute_nodes()[0]['host']
+        hypervisor = self.get_hypervisor_details(host)
+        # Let's create the flavor with disk size larger than the available disk
+        disk_inventory = self.get_resource_provider_inventory(
+            hypervisor['id'])['DISK_GB']
+        available_disk = (disk_inventory['total']
+                          * disk_inventory['allocation_ratio'])
+        flavor_disk = int(available_disk) + 2
+        flavor_id = self._create_custom_flavor(
+            disk=flavor_disk, ephemeral=1, swap=128)
+
+        instances = []
+        created_instances = 2
+        for _ in range(created_instances):
+            instance = self._create_instance(
+                host, flavor=flavor_id, boot_from_volume=True)
+            instances.append(instance)
+
+        # wait for compute model updates
+        self.wait_for_instances_in_model(instances)
+
+        for instance in instances:
+            # Inject metrics after the instances are created
+            self.make_instance_statistic(instance)
+
+        # Set a threshold for CPU usage
+        threshold = round(
+            (created_instances - 0.5) * (0.8 / int(hypervisor['vcpus'])) * 100)
+
+        audit_parameters = {
+            "metrics": "instance_cpu_usage",
+            "threshold": threshold,
             "period": 300,
             "granularity": 300}
 

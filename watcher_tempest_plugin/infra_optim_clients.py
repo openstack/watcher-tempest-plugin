@@ -81,3 +81,17 @@ class ExtendPlacementClient(placement_client.PlacementClient):
         self.expected_success(200, resp.status)
         body = json.loads(body)
         return rest_client.ResponseBody(resp, body)
+
+    def list_provider_inventory(self, rp_uuid):
+        """List resource provider inventories from Placement API.
+
+        For full list of available parameters, please refer to the official
+        API reference:
+        https://docs.openstack.org/api-ref/placement/#
+        resource-provider-inventories
+        """
+        url = '/resource_providers/%s/inventories' % rp_uuid
+        resp, body = self.get(url)
+        self.expected_success(200, resp.status)
+        body = json.loads(body)
+        return rest_client.ResponseBody(resp, body)

@@ -162,4 +162,9 @@ OptimizationGroup = [
         default=False,
         help="Whether or not to run storage zone migration tests."
     ),
+    cfg.BoolOpt(
+        "run_bfv_tests",
+        default=False,
+        help="Whether or not to run boot from volume tests."
+    ),
 ]

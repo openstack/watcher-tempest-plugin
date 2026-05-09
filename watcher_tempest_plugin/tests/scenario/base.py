@@ -307,10 +307,15 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest,
 
         self.assertEqual(target_host, server_host, msg)
 
-    def _create_custom_flavor(self, ram=512, vcpus=1):
-        """Create a flavor with custom RAM size
+    def _create_custom_flavor(
+            self, ram=512, vcpus=1, disk=1, ephemeral=0, swap=0):
+        """Create a flavor with custom resources
 
         :param ram: RAM in MB to be set for the flavor.
+        :param vcpus: number of vCPUs.
+        :param disk: size of root disk in GB.
+        :param ephemeral: size of ephemeral disk in GB.
+        :param swap: size of swap disk in MB.
         :returns: A flavor id
         """
 
@@ -318,16 +323,17 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest,
             name=data_utils.rand_name('watcher_flavor'),
             ram=ram,
             vcpus=vcpus,
-            disk=1,
-            ephemeral=0,
-            swap=0,
+            disk=disk,
+            ephemeral=ephemeral,
+            swap=swap,
             rxtx_factor=1.0,
             is_public=True)['flavor']['id']
         self.addCleanup(test_utils.call_and_ignore_notfound_exc,
                         self.flavors_client.delete_flavor, flavor_id)
         return flavor_id
 
-    def _create_one_instance_per_host(self, flavor=None, run_command=None):
+    def _create_one_instance_per_host(
+            self, flavor=None, run_command=None, boot_from_volume=False):
         """Create one instance per compute node
 
         This goes up to the min_compute_nodes threshold so that things don't
@@ -335,6 +341,7 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest,
 
         :param flavor: Flavor Name or ID
         :param run_command: the command you want to run in the new instances
+        :param boot_from_volume: whether to boot from volume
         :returns: A list of instance UUIDs.
         """
 
@@ -369,11 +376,14 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest,
             self.assertNotEqual(0, retry)
             # by getting to active state here, this means this has
             # landed on the host in question.
-            instance = self._create_instance(node['host'], flavor, run_command)
+            instance = self._create_instance(
+                node['host'], flavor, run_command,
+                boot_from_volume=boot_from_volume)
             created_instances.append(instance)
         return created_instances
 
-    def _create_instance(self, host=None, flavor=None, run_command=None):
+    def _create_instance(self, host=None, flavor=None, run_command=None,
+                         boot_from_volume=False, volume_type=None):
         # We enforce the compute node where we create the instance to
         # make sure we have one node on each compute.
         # This requires Nova API version 2.74 or higher.
@@ -395,11 +405,22 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest,
             script_b64 = base64.b64encode(script_clean)
             kwargs_server['user_data'] = script_b64
         flavor = flavor if flavor else CONF.compute.flavor_ref
-        instance = self.create_server(
-            image_id=CONF.compute.image_ref, wait_until='ACTIVE',
-            flavor=flavor, clients=self.os_admin, validatable=validatable,
-            validation_resources=validation_resources,
-            **kwargs_server)
+        image_id = CONF.compute.image_ref
+        if boot_from_volume:
+            bfv_kwargs = {'image_id': image_id}
+            if volume_type:
+                bfv_kwargs['volume_type'] = volume_type
+            volume = self.create_volume_from_image(**bfv_kwargs)
+            instance = self.boot_instance_from_resource(
+                volume['id'], 'volume',
+                wait_until='ACTIVE', flavor=flavor, clients=self.os_admin,
+                validatable=validatable,
+                validation_resources=validation_resources, **kwargs_server)
+        else:
+            instance = self.create_server(
+                image_id=image_id, wait_until='ACTIVE',
+                flavor=flavor, clients=self.os_admin, validatable=validatable,
+                validation_resources=validation_resources, **kwargs_server)
         # get instance object again as admin
         instance = self.mgr.servers_client.show_server(
             instance['id'])['server']
@@ -607,6 +628,11 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest,
         all_flavors = self.flavors_client.list_flavors(detail=True)['flavors']
         flavor_name = instance['flavor']['original_name']
         flavor = [f for f in all_flavors if f['name'] == flavor_name]
+        # instance['image'] is empty or '' in boot from volume instances. In
+        # that case we are setting image_id to empty string as Nova API does.
+        image = instance['image']
+        image_id = image.get('id', '') if isinstance(image, dict) else ''
+
         if metrics == dict():
             metrics = {
                 self.GNOCCHI_METRIC_MAP["instance_cpu_usage"]: {
@@ -629,7 +655,7 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest,
             'metrics': metrics,
             'host': self.get_host_for_server(instance['id']),
             'display_name': instance.get('OS-EXT-SRV-ATTR:instance_name'),
-            'image_ref': instance['image']['id'],
+            'image_ref': image_id,
             'flavor_id': flavor[0]['id'],
             'flavor_name': flavor_name,
             'id': instance['id']
@@ -1013,6 +1039,16 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest,
             return True
         else:
             return False
+
+    def get_resource_provider_inventory(self, res_id):
+        """Get resource provider details for a node
+
+        :param res_id: The unique identifier of the resource provider.
+        :return: Resource provider inventory
+        """
+        inventories = self.placement_client.list_provider_inventory(
+            res_id)['inventories']
+        return inventories
 
     def wait_for_instances_in_model(self, instances, timeout=300):
         """Waits until all instance ids are mapped to a model.

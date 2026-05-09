@@ -113,7 +113,9 @@ class TestExecuteZoneMigrationStrategy(TestZoneMigrationStrategyBase):
         self.execute_action_plan_and_validate_states(action_plan['uuid'])
 
 
-class TestExecuteZoneMigrationStrategyVolume(TestZoneMigrationStrategyBase):
+class TestExecuteZoneMigrationStrategyVolumeBase(
+        TestZoneMigrationStrategyBase):
+    """Base class for volume migration tests"""
 
     @classmethod
     def skip_checks(cls):
@@ -189,6 +191,11 @@ class TestExecuteZoneMigrationStrategyVolume(TestZoneMigrationStrategyBase):
             dst_pool1 = src_pool2
             dst_pool2 = src_pool1
         return dst_pool1, dst_pool2
+
+
+class TestExecuteZoneMigrationStrategyVolume(
+        TestExecuteZoneMigrationStrategyVolumeBase):
+    """Tests for volume migration"""
 
     @decorators.attr(type=['strategy', 'zone_migration', 'volume_migration'])
     @decorators.idempotent_id('f8f4d551-d892-4111-ab92-5b6b5523e5dc')
@@ -457,6 +464,110 @@ class TestExecuteZoneMigrationStrategyVolume(TestZoneMigrationStrategyBase):
         vm_volume_host = self.get_host_for_volume(vm_volume['id'])
         self.assertEqual(vm_volume_host, dst_pool_vm_volume)
         self.assertNotEqual(vm_volume_host, src_pool_vm_volume)
+
+        self.assertEqual(
+            self.get_host_for_server(instance['id']),
+            dst_node
+        )
+
+
+class TestExecuteZoneMigrationStrategyVolumeBfV(
+        TestExecuteZoneMigrationStrategyVolumeBase):
+    """Tests for zone_migration with boot from volume instances"""
+
+    @classmethod
+    def skip_checks(cls):
+        super().skip_checks()
+        if not CONF.optimize.run_bfv_tests:
+            raise cls.skipException(
+                "Boot from volume tests are not enabled."
+            )
+
+    @decorators.attr(type=['strategy', 'zone_migration', 'volume_migration'])
+    @decorators.idempotent_id('a3c1e7b4-5f92-4d08-b6a3-1e9c84f20d57')
+    def test_execute_zone_migration_volume_and_compute_migrate_bfv(self):
+        """Test zone migration with boot-from-volume instance.
+
+        Ensure VMs booted from cinder volumes can be migrated together with
+        their root volume by the zone migration strategy.
+        """
+
+        self.check_multiple_pools()
+
+        self.check_min_enabled_compute_nodes(2)
+        self.addCleanup(self.wait_delete_instances_from_model)
+
+        volume_type = self.create_volume_type()
+
+        # create a boot-from-volume instance with the test volume type
+        host = self.get_enabled_compute_nodes()[0]['host']
+        # Let's create the flavor with disk size larger than the available disk
+        # to validate proper disc constraint accounting.
+        hypervisor = self.get_hypervisor_details(host)
+        disk_inventory = self.get_resource_provider_inventory(
+            hypervisor['id'])['DISK_GB']
+        available_disk = (disk_inventory['total']
+                          * disk_inventory['allocation_ratio'])
+        flavor_disk = int(available_disk) + 2
+        flavor_id = self._create_custom_flavor(disk=flavor_disk)
+
+        instance = self._create_instance(
+            host, flavor=flavor_id, boot_from_volume=True,
+            volume_type=volume_type['name'])
+
+        # wait for compute model updates
+        self.wait_for_instances_in_model([instance])
+
+        # get the boot volume from the instance
+        attachments = (
+            self.os_admin.servers_client.list_volume_attachments(
+                instance['id'])['volumeAttachments'])
+        self.assertEqual(1, len(attachments))
+        boot_volume_id = attachments[0]['volumeId']
+
+        src_pool_boot_volume = self.get_host_for_volume(
+            boot_volume_id)
+        # get the destination pool for migration
+        dst_pool_boot, _ = self.calculate_dst_pools(
+            src_pool_boot_volume, src_pool_boot_volume
+        )
+        # add storage migration parameters
+        audit_parameters = {
+            "with_attached_volume": True,
+            'storage_pools': [
+                {
+                    'src_pool': src_pool_boot_volume,
+                    'src_type': volume_type['name'],
+                    'dst_pool': dst_pool_boot
+                }
+            ]
+        }
+        # add compute migrations parameters
+        src_node = self.get_host_for_server(instance['id'])
+        dst_node = self.get_host_other_than(instance['id'])
+        audit_parameters['compute_nodes'] = [
+            {'src_node': src_node, 'dst_node': dst_node}
+        ]
+
+        audit_kwargs = {'parameters': audit_parameters}
+
+        audit_template = self.create_audit_template_for_strategy()
+
+        audit = self.create_audit_and_wait(
+            audit_template['uuid'], **audit_kwargs)
+
+        # action plan should have both vm and volume migration
+        action_plan, _ = self.get_action_plan_and_validate_actions(
+            audit['uuid'], ['volume_migrate', 'migrate'])
+
+        self.assertEqual('RECOMMENDED', action_plan['state'])
+
+        self.execute_action_plan_and_validate_states(
+            action_plan['uuid'])
+
+        boot_volume_host = self.get_host_for_volume(boot_volume_id)
+        self.assertEqual(boot_volume_host, dst_pool_boot)
+        self.assertNotEqual(boot_volume_host, src_pool_boot_volume)
 
         self.assertEqual(
             self.get_host_for_server(instance['id']),
