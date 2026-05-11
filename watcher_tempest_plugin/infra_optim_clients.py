@@ -16,12 +16,9 @@
 
 import abc
 
-from oslo_serialization import jsonutils as json
 from tempest import clients
 from tempest.common import credentials_factory as creds_factory
 from tempest import config
-from tempest.lib.common import rest_client
-from tempest.lib.services.placement import placement_client
 
 from watcher_tempest_plugin.services.infra_optim.v1.json import client as ioc
 from watcher_tempest_plugin.services.metric import prometheus_client as pc
@@ -38,8 +35,6 @@ class BaseManager(clients.Manager, metaclass=abc.ABCMeta):
             self.auth_provider, 'infra-optim', CONF.identity.region)
         self.gn_client = gc.GnocchiClientJSON(
             self.auth_provider, 'metric', CONF.identity.region)
-        self.placement_client = ExtendPlacementClient(
-            self.auth_provider, 'placement', CONF.identity.region)
         prom_ssl = "s" if CONF.optimize.prometheus_ssl_enabled else ""
         self.prometheus_client = pc.PromtoolClient(
             "http{}://{}:{}".format(prom_ssl,
@@ -64,34 +59,3 @@ class AdminManager(BaseManager):
         super(AdminManager, self).__init__(
             creds_factory.get_configured_admin_credentials(),
         )
-
-
-class ExtendPlacementClient(placement_client.PlacementClient):
-
-    def list_provider_traits(self, rp_uuid):
-        """List resource provider traits.
-
-        For full list of available parameters, please refer to the official
-        API reference:
-        https://docs.openstack.org/api-ref/placement/#
-        list-resource-provider-traits-detail
-        """
-        url = '/resource_providers/%s/traits' % rp_uuid
-        resp, body = self.get(url)
-        self.expected_success(200, resp.status)
-        body = json.loads(body)
-        return rest_client.ResponseBody(resp, body)
-
-    def list_provider_inventory(self, rp_uuid):
-        """List resource provider inventories from Placement API.
-
-        For full list of available parameters, please refer to the official
-        API reference:
-        https://docs.openstack.org/api-ref/placement/#
-        resource-provider-inventories
-        """
-        url = '/resource_providers/%s/inventories' % rp_uuid
-        resp, body = self.get(url)
-        self.expected_success(200, resp.status)
-        body = json.loads(body)
-        return rest_client.ResponseBody(resp, body)
