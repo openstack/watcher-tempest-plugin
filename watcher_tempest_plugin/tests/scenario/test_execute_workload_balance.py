@@ -14,6 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import copy
+import math
+
 from oslo_log import log
 from tempest import config
 from tempest.lib import decorators
@@ -219,3 +222,84 @@ class TestExecuteWorkloadBalanceStrategyBfV(
         self.assertEqual("RECOMMENDED", action_plan['state'])
 
         self.execute_action_plan_and_validate_states(action_plan['uuid'])
+
+    @decorators.attr(type=['strategy', 'workload_balance'])
+    @decorators.idempotent_id('8c72586c-eedd-4b99-91b6-97d24636d116')
+    def test_execute_workload_balance_strategy_ram_bfv_disk_full(self):
+        # This test validates that the workload_balance strategy produces
+        # an empty action plan when BfV instances use a flavor whose
+        # ephemeral disk exceeds 40% of the host disk capacity.
+        # With two such instances per host, the destination node cannot
+        # accommodate a migration because its local disk is already
+        # consumed by its own instances' ephemeral storage.
+
+        self.check_min_enabled_compute_nodes(2)
+        self.addCleanup(self.wait_delete_instances_from_model)
+        self.addCleanup(self.clean_injected_metrics)
+
+        nodes = self.get_enabled_compute_nodes()
+        host_loaded = nodes[0]['host']
+        hypervisor = self.get_hypervisor_details(host_loaded)
+        # Hosts other than the loaded host.
+        hosts_other = copy.deepcopy(nodes)
+        hosts_other.pop(0)
+
+        disk_inventory = self.get_resource_provider_inventory(
+            hypervisor['id'])['DISK_GB']
+        available_disk = ((disk_inventory['total']
+                           - disk_inventory['reserved'])
+                          * disk_inventory['allocation_ratio'])
+
+        # Each instance uses 40% of the host disk via ephemeral disks
+        # so that there is not enough disk space for three instances.
+        flavor_ephemeral_size = math.ceil(available_disk * 0.40)
+        # ram is set to 15% of the hypervisor memory as it will be used
+        # as metric for the workload_balance strategy.
+        ram = int(hypervisor['memory_mb'] * 0.15)
+
+        flavor_id = self._create_custom_flavor(
+            disk=1,
+            ephemeral=flavor_ephemeral_size,
+            ram=ram,
+            swap=128)
+
+        instances = []
+        loaded_instances = []
+        created_instances = 2
+        for _ in range(created_instances):
+            instance = self._create_instance(
+                host_loaded, flavor=flavor_id)
+            instances.append(instance)
+            loaded_instances.append(instance)
+
+        for host in hosts_other:
+            for _ in range(created_instances):
+                instance = self._create_instance(
+                    host['host'], flavor=flavor_id)
+                instances.append(instance)
+
+        self.wait_for_instances_in_model(instances)
+
+        for instance in loaded_instances:
+            self.make_instance_statistic(instance)
+
+        self.make_host_statistic(loaded_hosts=[host_loaded])
+
+        audit_parameters = {
+            "metrics": "instance_ram_usage",
+            "threshold": 18,
+            "period": 300,
+            "granularity": 300}
+
+        audit_kwargs = {"parameters": audit_parameters}
+
+        audit_template = self.create_audit_template_for_strategy()
+
+        audit = self.create_audit_and_wait(
+            audit_template['uuid'], **audit_kwargs)
+
+        action_plan, actions = self.get_action_plan_and_validate_actions(
+            audit['uuid'])
+
+        self.assertEqual("SUCCEEDED", action_plan['state'])
+        self.assertEqual(0, len(actions))
