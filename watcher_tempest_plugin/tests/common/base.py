@@ -112,7 +112,8 @@ class WatcherHelperMixin:
     # ### AUDIT TEMPLATES ### #
 
     def create_audit_template(self, goal, name=None, description=None,
-                              strategy=None, scope=None):
+                              strategy=None, scope=None,
+                              default_parameters=None):
         """Wrapper utility for creating a test audit template
 
         :param goal: Goal UUID or name related to the audit template.
@@ -120,13 +121,15 @@ class WatcherHelperMixin:
         :param description: The description of the audit template.
         :param strategy: Strategy UUID or name related to the audit template.
         :param scope: Audit scope
+        :param default_parameters: Default strategy parameters dict
         :return: A tuple with The HTTP response and its body
         """
         description = description or data_utils.rand_name(
             'test-audit_template')
         resp, body = self.client.create_audit_template(
             name=name, description=description, goal=goal,
-            strategy=strategy, scope=scope)
+            strategy=strategy, scope=scope,
+            default_parameters=default_parameters)
 
         self.addCleanup(
             test_utils.call_and_ignore_notfound_exc,

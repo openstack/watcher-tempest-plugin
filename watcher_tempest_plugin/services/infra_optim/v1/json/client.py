@@ -74,6 +74,8 @@ class InfraOptimClientJSON(base.BaseClient):
         :param goal_uuid: The related Goal UUID associated.
         :param strategy_uuid: The related Strategy UUID associated.
         :param audit_scope: Scope the audit should apply to.
+        :param default_parameters: Default strategy parameters for the audit
+            template (requires API version 1.7 or later).
         :return: A tuple with the server response and the created audit
                  template.
         """
@@ -89,6 +91,12 @@ class InfraOptimClientJSON(base.BaseClient):
             'strategy': parameters.get('strategy'),
             'scope': parameters.get('scope', []),
         }
+
+        # NOTE(dviroel): default_parameters was added in api version 1.7
+        if parameters.get('default_parameters') is not None:
+            audit_template['default_parameters'] = (
+                parameters.get('default_parameters')
+            )
 
         return self._create_request('audit_templates', audit_template)
 
