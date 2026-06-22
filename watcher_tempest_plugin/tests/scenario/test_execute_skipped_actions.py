@@ -88,8 +88,8 @@ class TestExecuteSkippedActionsBase(base.BaseInfraOptimScenarioTest):
         self.assertTrue(test_utils.call_until_true(
             func=functools.partial(
                 self.has_action_plan_finished, action_plan['uuid']),
-            duration=180,
-            sleep_for=1
+            duration=CONF.optimize.resource_timeout,
+            sleep_for=CONF.optimize.resource_check_interval
         ))
 
         _, finished_ap = self.client.show_action_plan(action_plan['uuid'])

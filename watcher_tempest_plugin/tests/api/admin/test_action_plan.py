@@ -16,11 +16,14 @@
 
 import functools
 
+from tempest import config
 from tempest.lib.common.utils import test_utils
 from tempest.lib import decorators
 from tempest.lib import exceptions
 
 from watcher_tempest_plugin.tests.api.admin import base
+
+CONF = config.CONF
 
 
 class TestCreateDeleteExecuteActionPlan(base.BaseInfraOptimTest):
@@ -35,8 +38,8 @@ class TestCreateDeleteExecuteActionPlan(base.BaseInfraOptimTest):
 
         self.assertTrue(test_utils.call_until_true(
             func=functools.partial(self.has_audit_finished, audit['uuid']),
-            duration=30,
-            sleep_for=.5
+            duration=CONF.optimize.resource_timeout,
+            sleep_for=CONF.optimize.resource_check_interval
         ))
         _, action_plans = self.client.list_action_plans(
             audit_uuid=audit['uuid'])
@@ -60,8 +63,8 @@ class TestCreateDeleteExecuteActionPlan(base.BaseInfraOptimTest):
 
         self.assertTrue(test_utils.call_until_true(
             func=functools.partial(self.has_audit_finished, audit['uuid']),
-            duration=30,
-            sleep_for=.5
+            duration=CONF.optimize.resource_timeout,
+            sleep_for=CONF.optimize.resource_check_interval
         ))
 
         _, action_plans = self.client.list_action_plans(
@@ -89,8 +92,8 @@ class TestCreateDeleteExecuteActionPlan(base.BaseInfraOptimTest):
 
         self.assertTrue(test_utils.call_until_true(
             func=functools.partial(self.has_audit_finished, audit['uuid']),
-            duration=30,
-            sleep_for=.5
+            duration=CONF.optimize.resource_timeout,
+            sleep_for=CONF.optimize.resource_check_interval
         ))
 
         _, action_plans = self.client.list_action_plans(
@@ -121,8 +124,8 @@ class TestShowListActionPlan(base.BaseInfraOptimTest):
         assert test_utils.call_until_true(
             func=functools.partial(
                 self.has_audit_finished, self.audit['uuid']),
-            duration=30,
-            sleep_for=.5
+            duration=CONF.optimize.resource_timeout,
+            sleep_for=CONF.optimize.resource_check_interval
         )
 
         _, action_plans = self.client.list_action_plans(

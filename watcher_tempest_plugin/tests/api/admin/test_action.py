@@ -17,10 +17,13 @@
 import collections
 import functools
 
+from tempest import config
 from tempest.lib.common.utils import test_utils
 from tempest.lib import decorators
 
 from watcher_tempest_plugin.tests.api.admin import base
+
+CONF = config.CONF
 
 
 class TestShowListAction(base.BaseInfraOptimTest):
@@ -40,8 +43,8 @@ class TestShowListAction(base.BaseInfraOptimTest):
         assert test_utils.call_until_true(
             func=functools.partial(self.has_audit_finished,
                                    self.audit['uuid']),
-            duration=30,
-            sleep_for=.5
+            duration=CONF.optimize.resource_timeout,
+            sleep_for=CONF.optimize.resource_check_interval
         ), "Audit %s did not finish within expected time" % self.audit['uuid']
 
         # Check if audit succeeded
@@ -148,8 +151,8 @@ class TestPatchAction(base.BaseInfraOptimTest):
         assert test_utils.call_until_true(
             func=functools.partial(self.has_audit_finished,
                                    self.audit['uuid']),
-            duration=30,
-            sleep_for=.5
+            duration=CONF.optimize.resource_timeout,
+            sleep_for=CONF.optimize.resource_check_interval
         ), "Audit %s did not finish within expected time" % self.audit['uuid']
 
         # Check if audit succeeded

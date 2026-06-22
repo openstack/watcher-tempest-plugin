@@ -20,9 +20,12 @@ import functools
 
 from collections import abc
 
+from tempest import config
 from tempest.lib.common.utils import data_utils
 from tempest.lib.common.utils import test_utils
 from tempest.lib import exceptions
+
+CONF = config.CONF
 
 
 class FrozenEnumMeta(enum.EnumMeta):
@@ -207,8 +210,8 @@ class WatcherHelperMixin:
         test_utils.call_until_true(
             func=functools.partial(
                 self.has_audit_finished, audit_uuid),
-            duration=60,
-            sleep_for=2
+            duration=CONF.optimize.resource_timeout,
+            sleep_for=CONF.optimize.resource_check_interval
         )
 
     def is_audit_idle(self, audit_uuid):
@@ -304,8 +307,8 @@ class WatcherHelperMixin:
 
         assert test_utils.call_until_true(
             func=functools.partial(self.has_audit_finished, audit_uuid),
-            duration=30,
-            sleep_for=.5
+            duration=CONF.optimize.resource_timeout,
+            sleep_for=CONF.optimize.resource_check_interval
         ), "Audit %s did not finish within expected time" % audit_uuid
 
         _, action_plans = self.client.list_action_plans(audit_uuid=audit_uuid)
@@ -332,8 +335,8 @@ class WatcherHelperMixin:
         test_utils.call_until_true(
             func=functools.partial(
                 self.is_action_plan_idle, action_plan_uuid),
-            duration=30,
-            sleep_for=.5
+            duration=CONF.optimize.resource_timeout,
+            sleep_for=CONF.optimize.resource_check_interval
         )
 
         return resp

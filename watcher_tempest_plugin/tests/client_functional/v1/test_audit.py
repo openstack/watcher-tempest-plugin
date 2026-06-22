@@ -18,10 +18,13 @@ from dateutil import tz
 import functools
 
 from oslo_utils import uuidutils
+from tempest import config
 from tempest.lib.common.utils import test_utils
 from tempest.lib import decorators
 
 from watcher_tempest_plugin.tests.client_functional.v1 import base
+
+CONF = config.CONF
 
 
 class AuditTests(base.TestCase):
@@ -47,8 +50,8 @@ class AuditTests(base.TestCase):
         cls.audit_uuid = audit_output['UUID']
         audit_created = test_utils.call_until_true(
             func=functools.partial(cls.has_audit_created, cls.audit_uuid),
-            duration=600,
-            sleep_for=2)
+            duration=CONF.optimize.resource_timeout,
+            sleep_for=CONF.optimize.resource_check_interval)
         if not audit_created:
             raise Exception('Audit has not been succeeded')
 
@@ -134,8 +137,8 @@ class AuditTestsV12(AuditTestsV11):
         cls.audit_uuid = audit_output['UUID']
         audit_created = test_utils.call_until_true(
             func=functools.partial(cls.has_audit_created, cls.audit_uuid),
-            duration=600,
-            sleep_for=2)
+            duration=CONF.optimize.resource_timeout,
+            sleep_for=CONF.optimize.resource_check_interval)
         if not audit_created:
             raise Exception('Audit has not been succeeded')
 
@@ -166,8 +169,8 @@ class AuditActiveTests(base.TestCase):
         self.assertTrue(test_utils.call_until_true(
             func=functools.partial(
                 self.has_audit_created, audit_uuid),
-            duration=600,
-            sleep_for=2
+            duration=CONF.optimize.resource_timeout,
+            sleep_for=CONF.optimize.resource_check_interval
         ))
         output = self.parse_show(
             self.watcher('actionplan list --audit %s' % audit_uuid))
@@ -188,8 +191,8 @@ class AuditActiveTests(base.TestCase):
         self.assertTrue(test_utils.call_until_true(
             func=functools.partial(
                 self.has_audit_created, audit_uuid),
-            duration=600,
-            sleep_for=2
+            duration=CONF.optimize.resource_timeout,
+            sleep_for=CONF.optimize.resource_check_interval
         ))
         raw_output = self.watcher('audit delete %s' % audit_uuid)
         self.assertOutput('', raw_output)
@@ -207,8 +210,8 @@ class AuditActiveTests(base.TestCase):
         self.assertTrue(test_utils.call_until_true(
             func=functools.partial(
                 self.has_audit_created, audit_uuid),
-            duration=600,
-            sleep_for=2
+            duration=CONF.optimize.resource_timeout,
+            sleep_for=CONF.optimize.resource_check_interval
         ))
         audit_state = self.parse_show_as_object(
             self.watcher('audit show %s' % audit_uuid))['State']

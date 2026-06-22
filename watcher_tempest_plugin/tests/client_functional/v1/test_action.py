@@ -17,10 +17,13 @@ from oslo_utils import uuidutils
 
 import functools
 
+from tempest import config
 from tempest.lib.common.utils import test_utils
 from tempest.lib import decorators
 
 from watcher_tempest_plugin.tests.client_functional.v1 import base
+
+CONF = config.CONF
 
 
 class ActionTests(base.TestCase):
@@ -43,8 +46,8 @@ class ActionTests(base.TestCase):
         cls.audit_uuid = audit_output['UUID']
         audit_created = test_utils.call_until_true(
             func=functools.partial(cls.has_audit_created, cls.audit_uuid),
-            duration=600,
-            sleep_for=2)
+            duration=CONF.optimize.resource_timeout,
+            sleep_for=CONF.optimize.resource_check_interval)
         if not audit_created:
             raise Exception('Audit has not been succeeded')
 

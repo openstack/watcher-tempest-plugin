@@ -158,8 +158,8 @@ class TestExecuteActionsViaActuator(base.BaseInfraOptimScenarioTest):
 
         self.assertTrue(test_utils.call_until_true(
             func=functools.partial(self.has_audit_succeeded, audit['uuid']),
-            duration=30,
-            sleep_for=.5
+            duration=CONF.optimize.resource_timeout,
+            sleep_for=CONF.optimize.resource_check_interval
         ))
         _, action_plans = self.client.list_action_plans(
             audit_uuid=audit['uuid'])
@@ -173,8 +173,8 @@ class TestExecuteActionsViaActuator(base.BaseInfraOptimScenarioTest):
         self.assertTrue(test_utils.call_until_true(
             func=functools.partial(
                 self.has_action_plan_finished, action_plan['uuid']),
-            duration=300,
-            sleep_for=1
+            duration=CONF.optimize.resource_timeout,
+            sleep_for=CONF.optimize.resource_check_interval
         ))
         _, finished_ap = self.client.show_action_plan(action_plan['uuid'])
         _, action_list = self.client.list_actions(

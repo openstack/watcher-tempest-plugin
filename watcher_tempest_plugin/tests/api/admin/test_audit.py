@@ -20,12 +20,15 @@ from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
 
+from tempest import config
 from tempest.lib.common.utils import test_utils
 from tempest.lib import decorators
 from tempest.lib import exceptions
 
 from watcher_tempest_plugin.tests.api.admin import base
 from watcher_tempest_plugin.tests.common import base as common_base
+
+CONF = config.CONF
 
 
 class TestCreateUpdateDeleteAudit(base.BaseInfraOptimTest):
@@ -149,8 +152,8 @@ class TestCreateUpdateDeleteAudit(base.BaseInfraOptimTest):
         test_utils.call_until_true(
             func=functools.partial(
                 self.is_audit_ongoing, audit_uuid),
-            duration=10,
-            sleep_for=.5
+            duration=CONF.optimize.resource_timeout,
+            sleep_for=CONF.optimize.resource_check_interval
         )
 
         self.cancel_audit(audit_uuid)
@@ -166,8 +169,8 @@ class TestCreateUpdateDeleteAudit(base.BaseInfraOptimTest):
         test_utils.call_until_true(
             func=functools.partial(
                 self.is_audit_idle, audit_uuid),
-            duration=10,
-            sleep_for=.5
+            duration=CONF.optimize.resource_timeout,
+            sleep_for=CONF.optimize.resource_check_interval
         )
 
         def is_audit_deleted(uuid):
@@ -180,8 +183,8 @@ class TestCreateUpdateDeleteAudit(base.BaseInfraOptimTest):
 
         test_utils.call_until_true(
             func=functools.partial(is_audit_deleted, audit_uuid),
-            duration=5,
-            sleep_for=1
+            duration=CONF.optimize.resource_timeout,
+            sleep_for=CONF.optimize.resource_check_interval
         )
 
         self.assertTrue(is_audit_deleted(audit_uuid))
@@ -291,13 +294,15 @@ class TestCreateUpdateDeleteAuditV11(base.BaseInfraOptimTest):
         # Wait for first action plan
         self.assertTrue(test_utils.call_until_true(
             func=functools.partial(self.has_action_plans, audit_uuid),
-            duration=300, sleep_for=10))
+            duration=CONF.optimize.resource_timeout,
+            sleep_for=CONF.optimize.resource_check_interval))
 
         # Wait for multiple action plans (superseding behavior)
         self.assertTrue(test_utils.call_until_true(
             func=functools.partial(self._has_multiple_action_plans,
                                    audit_uuid),
-            duration=180, sleep_for=10),
+            duration=CONF.optimize.resource_timeout,
+            sleep_for=CONF.optimize.resource_check_interval),
             "Failed to generate multiple action plans for superseding test")
 
         # Verify superseding: latest RECOMMENDED, previous CANCELLED
@@ -432,8 +437,8 @@ class TestShowListAudit(base.BaseInfraOptimTest):
         self.assertTrue(test_utils.call_until_true(
             func=functools.partial(
                 self.has_audit_finished, self.audit['uuid']),
-            duration=30,
-            sleep_for=.5
+            duration=CONF.optimize.resource_timeout,
+            sleep_for=CONF.optimize.resource_check_interval
         ))
 
     def assert_expected(self, expected, actual,

@@ -91,8 +91,8 @@ class BaseInfraOptimTest(api_version_utils.BaseMicroversionTest,
     def wait_for_all_action_plans_to_finish(self):
         assert test_utils.call_until_true(
             func=self._are_all_action_plans_finished,
-            duration=300,
-            sleep_for=5
+            duration=CONF.optimize.resource_timeout,
+            sleep_for=CONF.optimize.resource_check_interval
         )
 
     def validate_self_link(self, resource, uuid, link):

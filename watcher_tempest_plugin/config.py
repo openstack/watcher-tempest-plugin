@@ -122,6 +122,33 @@ OptimizationGroup = [
         help="In real-data test cases, the period of time during which "
              "the load will be executed in seconds."
     ),
+    cfg.FloatOpt(
+        "model_check_interval",
+        default=1.0,
+        help="Interval in seconds between polls when waiting for the "
+             "Watcher compute data model to reflect instance changes "
+             "(creation, attribute updates, deletion)."
+    ),
+    cfg.FloatOpt(
+        "resource_check_interval",
+        default=1.0,
+        help="Interval in seconds between polls when waiting for Watcher "
+             "resources (audits, action plans, compute nodes) to reach "
+             "an expected state."
+    ),
+    cfg.IntOpt(
+        "resource_timeout",
+        default=300,
+        help="Maximum time in seconds to wait for Watcher resources "
+             "(audits, action plans, compute nodes) to reach an expected "
+             "state."
+    ),
+    cfg.IntOpt(
+        "model_timeout",
+        default=300,
+        help="Maximum time in seconds to wait for the Watcher compute "
+             "data model to reflect instance changes."
+    ),
     cfg.StrOpt(
         "min_microversion",
         default=None,

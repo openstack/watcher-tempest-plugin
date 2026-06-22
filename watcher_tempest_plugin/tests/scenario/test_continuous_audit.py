@@ -66,8 +66,8 @@ class TestContinuousAudit(base.BaseInfraOptimScenarioTest):
         self.assertTrue(test_utils.call_until_true(
             func=functools.partial(
                 self.has_action_plans_finished),
-            duration=600,
-            sleep_for=2
+            duration=CONF.optimize.resource_timeout,
+            sleep_for=CONF.optimize.resource_check_interval
         ))
 
         # 1. Create a continuous audit that should propose
@@ -86,8 +86,8 @@ class TestContinuousAudit(base.BaseInfraOptimScenarioTest):
             self.assertTrue(test_utils.call_until_true(
                 func=functools.partial(
                     self.is_audit_ongoing, audit["uuid"]),
-                duration=300,
-                sleep_for=2
+                duration=CONF.optimize.resource_timeout,
+                sleep_for=CONF.optimize.resource_check_interval
             ))
         except ValueError:
             self.fail("Audit failed to reach ONGOING state.")
@@ -97,8 +97,8 @@ class TestContinuousAudit(base.BaseInfraOptimScenarioTest):
             self.assertTrue(test_utils.call_until_true(
                 func=functools.partial(
                     self.has_action_plans, audit["uuid"]),
-                duration=300,
-                sleep_for=10
+                duration=CONF.optimize.resource_timeout,
+                sleep_for=CONF.optimize.resource_check_interval
             ))
         except ValueError:
             self.fail("Audit failed to create an action plan.")
@@ -111,8 +111,8 @@ class TestContinuousAudit(base.BaseInfraOptimScenarioTest):
             self.assertTrue(test_utils.call_until_true(
                 func=functools.partial(
                     self.has_action_plan_finished, action_plan["uuid"]),
-                duration=60,
-                sleep_for=2
+                duration=CONF.optimize.resource_timeout,
+                sleep_for=CONF.optimize.resource_check_interval
             ))
         except ValueError:
             self.fail("Action plan failed to reach a finished state.")
@@ -138,8 +138,8 @@ class TestContinuousAudit(base.BaseInfraOptimScenarioTest):
             self.assertTrue(test_utils.call_until_true(
                 func=functools.partial(
                     self.has_action_plans_recommended, audit["uuid"]),
-                duration=300,
-                sleep_for=10
+                duration=CONF.optimize.resource_timeout,
+                sleep_for=CONF.optimize.resource_check_interval
             ))
         except ValueError:
             self.fail("Audit failed to create a RECOMMENDED action plan.")
@@ -154,8 +154,8 @@ class TestContinuousAudit(base.BaseInfraOptimScenarioTest):
             self.assertTrue(test_utils.call_until_true(
                 func=functools.partial(
                     self.has_audit_finished, audit["uuid"]),
-                duration=300,
-                sleep_for=2
+                duration=CONF.optimize.resource_timeout,
+                sleep_for=CONF.optimize.resource_check_interval
             ))
         except ValueError:
             self.fail("The audit failed to reach one of finished states.")

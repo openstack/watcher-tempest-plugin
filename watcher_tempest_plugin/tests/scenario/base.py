@@ -19,6 +19,7 @@
 import base64
 import functools
 import json
+import math
 import os_traits
 import random
 import textwrap
@@ -224,8 +225,8 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest,
 
         assert test_utils.call_until_true(
             func=_are_compute_nodes_setup,
-            duration=600,
-            sleep_for=2
+            duration=CONF.optimize.resource_timeout,
+            sleep_for=CONF.optimize.resource_check_interval
         )
 
     @classmethod
@@ -248,12 +249,13 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest,
                 rollback_func(svr_id, status=status)
 
     @classmethod
-    def wait_for(cls, condition, timeout=30):
+    def wait_for(cls, condition, timeout=None):
         start_time = time.time()
-        while time.time() - start_time < timeout:
+        deadline = timeout or CONF.optimize.resource_timeout
+        while time.time() - start_time < deadline:
             if condition():
                 break
-            time.sleep(.5)
+            time.sleep(CONF.optimize.resource_check_interval)
 
     @classmethod
     def _check_network_config(cls):
@@ -279,8 +281,8 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest,
     def wait_for_all_action_plans_to_finish(self):
         assert test_utils.call_until_true(
             func=self._are_all_action_plans_finished,
-            duration=300,
-            sleep_for=5
+            duration=CONF.optimize.resource_timeout,
+            sleep_for=CONF.optimize.resource_check_interval
         )
 
     def _migrate_server_to(self, server_id, dest_host):
@@ -365,15 +367,16 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest,
             # update_available_resource periodic task.
             # We need node status is enabled, so we check the node
             # trait and delay if it is not the correct status.
-            # the max delay time is 10 minutes.
             node_trait = os_traits.COMPUTE_STATUS_DISABLED
-            retry = 20
+            retry = math.ceil(
+                CONF.optimize.resource_timeout
+                / CONF.optimize.resource_check_interval)
             trait_status = True
             while trait_status and retry:
                 trait_status = self.check_node_trait(hyp_id[0], node_trait)
                 if not trait_status:
                     break
-                time.sleep(30)
+                time.sleep(CONF.optimize.resource_check_interval)
                 retry -= 1
             self.assertNotEqual(0, retry)
             # by getting to active state here, this means this has
@@ -722,8 +725,8 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest,
             self.assertTrue(test_utils.call_until_true(
                 func=functools.partial(
                     self._show_measures, metric_uuid),
-                duration=600,
-                sleep_for=2
+                duration=CONF.optimize.resource_timeout,
+                sleep_for=CONF.optimize.resource_check_interval
             ))
 
     # ### PROMETHEUS ### #
@@ -974,8 +977,8 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest,
         self.assertTrue(test_utils.call_until_true(
             func=functools.partial(
                 self.has_action_plans_finished),
-            duration=600,
-            sleep_for=2
+            duration=CONF.optimize.resource_timeout,
+            sleep_for=CONF.optimize.resource_check_interval
         ))
 
         audit_type = audit_kwargs.pop('audit_type', 'ONESHOT')
@@ -995,8 +998,8 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest,
                 func=functools.partial(
                     self.has_audit_finished,
                     audit['uuid']),
-                duration=600,
-                sleep_for=2
+                duration=CONF.optimize.resource_timeout,
+                sleep_for=CONF.optimize.resource_check_interval
             ))
         except ValueError:
             self.fail("The audit has failed!")
@@ -1050,8 +1053,8 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest,
                 self.has_action_plan_finished,
                 action_plan_uuid
             ),
-            duration=600,
-            sleep_for=2
+            duration=CONF.optimize.resource_timeout,
+            sleep_for=CONF.optimize.resource_check_interval
         ))
         _, finished_ap = self.client.show_action_plan(action_plan_uuid)
         _, finished_actions = self.client.list_actions(
@@ -1086,7 +1089,7 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest,
             .list_resource_provider_inventories(res_id))
         return inventories.get('inventories', {})
 
-    def wait_for_instances_in_model(self, instances, timeout=300):
+    def wait_for_instances_in_model(self, instances, timeout=None):
         """Waits until all instance ids are mapped to a model.
 
         Get the model and save instance ids and hypervisor hostname
@@ -1096,7 +1099,7 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest,
         Compare the two lists and wait until they are equal.
         """
 
-        timeout_end = time.time() + timeout
+        timeout_end = time.time() + (timeout or CONF.optimize.model_timeout)
 
         _, body = self.client.list_data_models(data_model_type="compute")
         model_pairs = [(s['server_uuid'], s['node_hostname'])
@@ -1113,7 +1116,7 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest,
 
         # Check all instances are in the model and model is not empty
         while (not set(instance_pairs) <= set(model_pairs) or not model_pairs):
-            time.sleep(15)
+            time.sleep(CONF.optimize.model_check_interval)
             if time.time() >= timeout_end:
                 raise Exception("Instances are not mapped to compute model.")
 
@@ -1123,7 +1126,7 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest,
                            if 'server_uuid' in s and 'node_hostname' in s]
 
     def wait_for_instances_attributes_in_model(self, instances, attributes_map,
-                                               timeout=300):
+                                               timeout=None):
         """Waits until all instances have attributes updated in the model.
 
         Builds a list of instances that have all attributes updated in the
@@ -1136,7 +1139,7 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest,
         :raises: Exception if attributes were not updated in the model.
         """
 
-        timeout_end = time.time() + timeout
+        timeout_end = time.time() + (timeout or CONF.optimize.model_timeout)
 
         _, body = self.client.list_data_models(data_model_type="compute")
 
@@ -1152,7 +1155,7 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest,
 
         # Check all instances are in the model list built.
         while (not set(instance_ids) <= set(model_ids) or not model_ids):
-            time.sleep(15)
+            time.sleep(CONF.optimize.model_check_interval)
             if time.time() >= timeout_end:
                 raise Exception("Attributes were not updated in the model.")
 
@@ -1163,9 +1166,9 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest,
                 if 'server_uuid' in s and all(
                     s.get(k) == v for k, v in attributes_map.items())]
 
-    def wait_delete_instances_from_model(self, timeout=300):
+    def wait_delete_instances_from_model(self, timeout=None):
         """Waits until all deleted instaces be removed from model."""
-        timeout_end = time.time() + timeout
+        timeout_end = time.time() + (timeout or CONF.optimize.model_timeout)
 
         _, body = self.client.list_data_models(data_model_type="compute")
         model_uuids = [s["server_uuid"]
@@ -1176,7 +1179,7 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest,
         ids = [instance['id'] for instance in instances]
 
         while not set(model_uuids) <= set(ids):
-            time.sleep(15)
+            time.sleep(CONF.optimize.model_check_interval)
             if time.time() >= timeout_end:
                 raise Exception("Compute model still contains instances "
                                 "that were already deleted. Failing...")
