@@ -57,9 +57,15 @@ class TestDataModel(TestDataModelBase):
 
         _, body = self.client.list_data_models(data_model_type="compute")
 
-        self.assertEqual(len(instances), len(body['context']))
+        # Filter context to only include nodes with instances
+        context_with_instances = [
+            elem for elem in body['context']
+            if elem.get('server_uuid') is not None
+        ]
 
-        context_keys = body['context'][0].keys()
+        self.assertEqual(len(instances), len(context_with_instances))
+
+        context_keys = context_with_instances[0].keys()
 
         # Check some of the fields available in 1.3, including server fields
         expected_fields = set([
@@ -70,7 +76,7 @@ class TestDataModel(TestDataModelBase):
 
         # Sanity check in content returned by the data model
         for instance in instances:
-            server_ctx = [elem for elem in body['context']
+            server_ctx = [elem for elem in context_with_instances
                           if elem['server_uuid'] == instance['id']][0]
             node_details = self.get_hypervisor_details(
                 instance['OS-EXT-SRV-ATTR:host'])
