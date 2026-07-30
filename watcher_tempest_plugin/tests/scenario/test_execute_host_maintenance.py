@@ -52,15 +52,15 @@ class TestExecuteHostMaintenanceStrategy(
     @decorators.idempotent_id('17afd352-1929-46dd-a10a-63c90bb9255d')
     @decorators.attr(type=['strategy', 'host_maintenance'])
     def test_execute_host_maintenance_strategy(self):
-        # This test does not require metrics injection
         self.check_min_enabled_compute_nodes(2)
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
-        instances = self._create_one_instance_per_host()
-        # wait for compute model updates
-        self.wait_for_instances_in_model(instances)
 
-        src_node = self.get_host_for_server(instances[0]['id'])
+        migration_source = CONF.compute.migration_source_host
+        instance = self._create_instance(host=migration_source)
+        self.wait_for_instances_in_model([instance])
+
+        src_node = self.get_host_for_server(instance['id'])
 
         audit_kwargs = {
             "parameters": {
@@ -82,16 +82,19 @@ class TestExecuteHostMaintenanceStrategy(
     @decorators.idempotent_id('cc5a0f1b-e8d2-4813-b012-874982d15d06')
     @decorators.attr(type=['strategy', 'host_maintenance'])
     def test_execute_host_maintenance_strategy_backup_node(self):
-        # This test does not require metrics injection
+        self.skip_if_missing_migration_hosts()
+        migration_source = CONF.compute.migration_source_host
+        migration_dest = CONF.compute.migration_dest_host
         self.check_min_enabled_compute_nodes(2)
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
-        instances = self._create_one_instance_per_host()
-        # wait for compute model updates
-        self.wait_for_instances_in_model(instances)
 
-        src_node = self.get_host_for_server(instances[0]['id'])
-        dst_node = self.get_host_other_than(instances[0]['id'])
+        instance = self._create_instance(host=migration_source)
+        self.wait_for_instances_in_model([instance])
+
+        src_node = self.get_host_for_server(instance['id'])
+        dst_node = (migration_dest
+                    or self.get_host_other_than(instance['id']))
 
         audit_kwargs = {
             "parameters": {
@@ -112,9 +115,8 @@ class TestExecuteHostMaintenanceStrategy(
 
         self.execute_action_plan_and_validate_states(action_plan['uuid'])
 
-        # Make sure server is migrated to backup node
         self.assertEqual(
-            self.get_host_for_server(instances[0]['id']),
+            self.get_host_for_server(instance['id']),
             dst_node
         )
 
@@ -143,13 +145,15 @@ class TestExecuteHostMaintenanceStrategyBfV(
         # taken from the compute node local disk. This test is intended to
         # validate this case by creating a flavor with disk size larger than
         # the available disk in the destination host.
-
-        # This test does not require metrics injection
+        self.skip_if_missing_migration_hosts()
+        migration_source = CONF.compute.migration_source_host
+        migration_dest = CONF.compute.migration_dest_host
         self.check_min_enabled_compute_nodes(2)
         self.addCleanup(self.rollback_compute_nodes_status)
         self.addCleanup(self.wait_delete_instances_from_model)
-        # Create a flavor with disk size larger than the available disk
-        host = self.get_enabled_compute_nodes()[0]['host']
+
+        host = (migration_source
+                or self.get_enabled_compute_nodes()[0]['host'])
         hypervisor = self.get_hypervisor_details(host)
         disk_inventory = self.get_resource_provider_inventory(
             hypervisor['id'])['DISK_GB']
@@ -158,13 +162,13 @@ class TestExecuteHostMaintenanceStrategyBfV(
         flavor_disk = int(available_disk) + 2
         flavor_id = self._create_custom_flavor(disk=flavor_disk)
 
-        instances = self._create_one_instance_per_host(
-            flavor=flavor_id, boot_from_volume=True)
-        # wait for compute model updates
-        self.wait_for_instances_in_model(instances)
+        instance = self._create_instance(
+            host, flavor=flavor_id, boot_from_volume=True)
+        self.wait_for_instances_in_model([instance])
 
-        src_node = self.get_host_for_server(instances[0]['id'])
-        dst_node = self.get_host_other_than(instances[0]['id'])
+        src_node = self.get_host_for_server(instance['id'])
+        dst_node = (migration_dest
+                    or self.get_host_other_than(instance['id']))
 
         audit_kwargs = {
             "parameters": {
@@ -183,12 +187,9 @@ class TestExecuteHostMaintenanceStrategyBfV(
 
         self.assertEqual("RECOMMENDED", action_plan['state'])
 
-        # This test is starting and validating the success of the action plan
-        # to validate the actual live migration works in BfV instances.
         self.execute_action_plan_and_validate_states(action_plan['uuid'])
 
-        # Make sure server is migrated to backup node
         self.assertEqual(
-            self.get_host_for_server(instances[0]['id']),
+            self.get_host_for_server(instance['id']),
             dst_node
         )

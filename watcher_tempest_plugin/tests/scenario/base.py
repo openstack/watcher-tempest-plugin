@@ -278,6 +278,33 @@ class BaseInfraOptimScenarioTest(manager.ScenarioTest,
         self.assertGreaterEqual(
             len(enabled_compute_nodes), min_nodes, msg=msg)
 
+    def skip_if_missing_migration_hosts(self):
+        """Skip the test if migration host configuration is inconsistent.
+
+        Directed live-migration tests need a controlled source/destination
+        pair. Valid configurations are:
+
+        - both migration_source_host and migration_dest_host set (the
+          operator selects a same-cell pair explicitly), or
+        - neither set together with can_migrate_between_any_hosts enabled
+          (any host pair is safe, e.g. single-cell deployments).
+
+        Any other combination is skipped: setting only one host could let
+        Nova place the instance on the destination host (making source and
+        destination the same), and leaving both unset without
+        can_migrate_between_any_hosts could select hosts in different cells.
+        """
+        migration_source = CONF.compute.migration_source_host
+        migration_dest = CONF.compute.migration_dest_host
+        defined_hosts = bool(migration_source) != bool(migration_dest)
+        if defined_hosts or (
+                not CONF.compute_feature_enabled.can_migrate_between_any_hosts
+                and not (migration_source or migration_dest)):
+            raise self.skipException(
+                "Set both migration_source_host and migration_dest_host, "
+                "or neither with can_migrate_between_any_hosts enabled."
+            )
+
     def wait_for_all_action_plans_to_finish(self):
         assert test_utils.call_until_true(
             func=self._are_all_action_plans_finished,

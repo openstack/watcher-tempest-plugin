@@ -26,7 +26,7 @@ class TestZoneMigrationStrategyBase(base.BaseInfraOptimScenarioTest):
 
     # Minimal version required for list data models
     min_microversion = "1.3"
-    # Minimal version required for _create_one_instance_per_host
+    # Minimal version required for _create_instance with host parameter
     compute_min_microversion = base.NOVA_API_VERSION_CREATE_WITH_HOST
 
     GOAL = "hardware_maintenance"
@@ -50,15 +50,18 @@ class TestExecuteZoneMigrationStrategy(TestZoneMigrationStrategyBase):
     @decorators.idempotent_id('2119b69f-1cbd-4874-a82e-fceec093ebbb')
     @decorators.attr(type=['strategy', 'zone_migration'])
     def test_execute_zone_migration_with_destination_host(self):
-        # This test requires metrics injection
+        self.skip_if_missing_migration_hosts()
+        migration_source = CONF.compute.migration_source_host
+        migration_dest = CONF.compute.migration_dest_host
         self.check_min_enabled_compute_nodes(2)
         self.addCleanup(self.wait_delete_instances_from_model)
-        instances = self._create_one_instance_per_host()
-        # wait for compute model updates
-        self.wait_for_instances_in_model(instances)
 
-        src_node = self.get_host_for_server(instances[0]['id'])
-        dst_node = self.get_host_other_than(instances[0]['id'])
+        instance = self._create_instance(host=migration_source)
+        self.wait_for_instances_in_model([instance])
+
+        src_node = self.get_host_for_server(instance['id'])
+        dst_node = (migration_dest
+                    or self.get_host_other_than(instance['id']))
 
         audit_parameters = {
             "compute_nodes": [{"src_node": src_node, "dst_node": dst_node}],
@@ -85,14 +88,14 @@ class TestExecuteZoneMigrationStrategy(TestZoneMigrationStrategyBase):
             raise self.skipException(
                 "Extra tests for zone migration are not enabled."
             )
-        # This test requires metrics injection
         self.check_min_enabled_compute_nodes(2)
         self.addCleanup(self.wait_delete_instances_from_model)
-        instances = self._create_one_instance_per_host()
-        # wait for compute model updates
-        self.wait_for_instances_in_model(instances)
 
-        src_node = self.get_host_for_server(instances[0]['id'])
+        migration_source = CONF.compute.migration_source_host
+        instance = self._create_instance(host=migration_source)
+        self.wait_for_instances_in_model([instance])
+
+        src_node = self.get_host_for_server(instance['id'])
 
         audit_parameters = {
             "compute_nodes": [{"src_node": src_node}],
@@ -374,10 +377,9 @@ class TestExecuteZoneMigrationStrategyVolume(
         self.assertEqual(vm_volume_host, dst_pool_vm_volume)
         self.assertNotEqual(vm_volume_host, src_pool_vm_volume)
 
-    @decorators.attr(type=['strategy', 'zone_migration', 'volume_migration'])
-    @decorators.idempotent_id('9ceff861-d6cd-4a88-8a8f-0a5d659b7b38')
-    def test_execute_zone_migration_with_volume_and_compute_migration(self):
-        """Test zone migration strategy with volume and compute migrations."""
+    def _execute_volume_and_compute_migration(self,
+                                              with_destination_host=True):
+        """Common logic for volume and compute migration tests."""
 
         # check that there are multiple cinder pools configured
         # to be able to test migrations between them
@@ -393,12 +395,15 @@ class TestExecuteZoneMigrationStrategyVolume(
             name='free_volume_migrate', volume_type=volume_type['name']
         )
 
-        # create a volume and attach it to an instance
-        instance = self.create_server(
-            image_id=CONF.compute.image_ref,
-            wait_until='SSHABLE',
-            clients=self.os_primary,
-        )
+        migration_source = CONF.compute.migration_source_host
+        create_kwargs = {
+            'image_id': CONF.compute.image_ref,
+            'wait_until': 'SSHABLE',
+            'clients': self.os_primary,
+        }
+        if migration_source:
+            create_kwargs['host'] = migration_source
+        instance = self.create_server(**create_kwargs)
 
         vm_volume = self.create_volume(
             name='attached_volume_migrate', volume_type=volume_type['name']
@@ -406,7 +411,6 @@ class TestExecuteZoneMigrationStrategyVolume(
         self.nova_volume_attach(
             instance, vm_volume, servers_client=self.os_primary.servers_client
         )
-        # wait for compute model updates
         self.wait_for_instances_in_model([instance])
 
         src_pool_free_volume = self.get_host_for_volume(free_volume['id'])
@@ -424,11 +428,6 @@ class TestExecuteZoneMigrationStrategyVolume(
             ]
         }
         if dst_pool_free_volume != dst_pool_vm_volume:
-            # if the two volumes are scheduled in different hosts, we need to
-            # add both source hosts to the input parameters. Each volume is
-            # then migrated to the other's source pool and the 'src_type'
-            # parameter is set to the volume type created in the test to ensure
-            # no other volumes are migrated
             audit_parameters['storage_pools'].append(
                 {
                     'src_pool': src_pool_vm_volume,
@@ -438,10 +437,17 @@ class TestExecuteZoneMigrationStrategyVolume(
             )
 
         src_node = self.get_host_for_server(instance['id'])
-        dst_node = self.get_host_other_than(instance['id'])
-        audit_parameters['compute_nodes'] = [
-            {'src_node': src_node, 'dst_node': dst_node}
-        ]
+        if with_destination_host:
+            migration_dest = CONF.compute.migration_dest_host
+            dst_node = (migration_dest
+                        or self.get_host_other_than(instance['id']))
+            audit_parameters['compute_nodes'] = [
+                {'src_node': src_node, 'dst_node': dst_node}
+            ]
+        else:
+            audit_parameters['compute_nodes'] = [
+                {'src_node': src_node}
+            ]
 
         audit_kwargs = {'parameters': audit_parameters}
 
@@ -465,10 +471,39 @@ class TestExecuteZoneMigrationStrategyVolume(
         self.assertEqual(vm_volume_host, dst_pool_vm_volume)
         self.assertNotEqual(vm_volume_host, src_pool_vm_volume)
 
-        self.assertEqual(
-            self.get_host_for_server(instance['id']),
-            dst_node
-        )
+        if with_destination_host:
+            self.assertEqual(
+                self.get_host_for_server(instance['id']),
+                dst_node
+            )
+        else:
+            self.assertNotEqual(
+                self.get_host_for_server(instance['id']),
+                src_node
+            )
+
+    @decorators.attr(type=['strategy', 'zone_migration', 'volume_migration'])
+    @decorators.idempotent_id('9ceff861-d6cd-4a88-8a8f-0a5d659b7b38')
+    def test_execute_zone_migration_volume_and_compute_with_destination(self):
+        """Test zone migration strategy with volume and compute migrations."""
+        self.skip_if_missing_migration_hosts()
+        self._execute_volume_and_compute_migration(
+            with_destination_host=True)
+
+    @decorators.attr(type=['strategy', 'zone_migration', 'volume_migration'])
+    @decorators.idempotent_id('b4e8a1c3-7d56-4f29-a093-6c2d5e8f1b74')
+    def test_execute_zone_migration_volume_and_compute_without_destination(
+            self):
+        """Test zone migration with volume and compute migrations.
+
+        Same as test_execute_zone_migration_volume_and_compute_with_destination
+        but without specifying a destination host, letting the zone_migration
+        strategy select the destination. This is safer in multi-cell
+        deployments where specifying a destination host could result in a
+        cross-cell live migration, which is not supported by Nova.
+        """
+        self._execute_volume_and_compute_migration(
+            with_destination_host=False)
 
 
 class TestExecuteZoneMigrationStrategyVolumeBfV(
@@ -483,10 +518,9 @@ class TestExecuteZoneMigrationStrategyVolumeBfV(
                 "Boot from volume tests are not enabled."
             )
 
-    @decorators.attr(type=['strategy', 'zone_migration', 'volume_migration'])
-    @decorators.idempotent_id('a3c1e7b4-5f92-4d08-b6a3-1e9c84f20d57')
-    def test_execute_zone_migration_volume_and_compute_migrate_bfv(self):
-        """Test zone migration with boot-from-volume instance.
+    def _execute_volume_and_compute_migrate_bfv(self,
+                                                with_destination_host=True):
+        """Common logic for boot-from-volume migration tests.
 
         Ensure VMs booted from cinder volumes can be migrated together with
         their root volume by the zone migration strategy.
@@ -499,8 +533,9 @@ class TestExecuteZoneMigrationStrategyVolumeBfV(
 
         volume_type = self.create_volume_type()
 
-        # create a boot-from-volume instance with the test volume type
-        host = self.get_enabled_compute_nodes()[0]['host']
+        migration_source = CONF.compute.migration_source_host
+        host = (migration_source
+                or self.get_enabled_compute_nodes()[0]['host'])
         # Let's create the flavor with disk size larger than the available disk
         # to validate proper disc constraint accounting.
         hypervisor = self.get_hypervisor_details(host)
@@ -542,12 +577,18 @@ class TestExecuteZoneMigrationStrategyVolumeBfV(
                 }
             ]
         }
-        # add compute migrations parameters
         src_node = self.get_host_for_server(instance['id'])
-        dst_node = self.get_host_other_than(instance['id'])
-        audit_parameters['compute_nodes'] = [
-            {'src_node': src_node, 'dst_node': dst_node}
-        ]
+        if with_destination_host:
+            migration_dest = CONF.compute.migration_dest_host
+            dst_node = (migration_dest
+                        or self.get_host_other_than(instance['id']))
+            audit_parameters['compute_nodes'] = [
+                {'src_node': src_node, 'dst_node': dst_node}
+            ]
+        else:
+            audit_parameters['compute_nodes'] = [
+                {'src_node': src_node}
+            ]
 
         audit_kwargs = {'parameters': audit_parameters}
 
@@ -569,7 +610,37 @@ class TestExecuteZoneMigrationStrategyVolumeBfV(
         self.assertEqual(boot_volume_host, dst_pool_boot)
         self.assertNotEqual(boot_volume_host, src_pool_boot_volume)
 
-        self.assertEqual(
-            self.get_host_for_server(instance['id']),
-            dst_node
-        )
+        if with_destination_host:
+            self.assertEqual(
+                self.get_host_for_server(instance['id']),
+                dst_node
+            )
+        else:
+            self.assertNotEqual(
+                self.get_host_for_server(instance['id']),
+                src_node
+            )
+
+    @decorators.attr(type=['strategy', 'zone_migration', 'volume_migration'])
+    @decorators.idempotent_id('a3c1e7b4-5f92-4d08-b6a3-1e9c84f20d57')
+    def test_execute_zone_migration_volume_and_compute_bfv_with_destination(
+            self):
+        """Test zone migration with boot-from-volume instance."""
+        self.skip_if_missing_migration_hosts()
+        self._execute_volume_and_compute_migrate_bfv(
+            with_destination_host=True)
+
+    @decorators.attr(type=['strategy', 'zone_migration', 'volume_migration'])
+    @decorators.idempotent_id('d5f2b8e1-3a94-4c67-b182-9e7a4d6c3f50')
+    def test_execute_zone_migration_volume_and_compute_bfv_without_destination(
+            self):
+        """Test zone migration with boot-from-volume instance.
+
+        Test_execute_zone_migration_volume_and_compute_bfv_with_destination
+        but without specifying a destination host, letting the zone_migration
+        strategy select the destination. This is safer in multi-cell
+        deployments where specifying a destination host could result in a
+        cross-cell live migration, which is not supported by Nova.
+        """
+        self._execute_volume_and_compute_migrate_bfv(
+            with_destination_host=False)
