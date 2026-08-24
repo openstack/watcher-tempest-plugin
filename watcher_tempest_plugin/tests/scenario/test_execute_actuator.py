@@ -18,6 +18,8 @@
 import collections
 import functools
 
+from tempest.common import compute
+from tempest.common import waiters
 from tempest import config
 from tempest.lib.common.utils import test_utils
 from tempest.lib import decorators
@@ -200,3 +202,282 @@ class TestExecuteActionsViaActuator(base.BaseInfraOptimScenarioTest):
             actions = scenario['actions']
             self._fill_actions(actions)
             self._execute_actions(actions)
+
+
+class TestExecuteDeleteAndShelveActions(
+        base.BaseInfraOptimScenarioTest):
+    """Scenario tests for the delete and shelve actions.
+
+    Each test creates a real Nova instance via the actuator strategy,
+    executes the action plan, and then verifies the expected server state
+    (terminated or shelved) as the postcondition.
+    """
+
+    # Minimal version required for _create_instance with a specific host
+    compute_min_microversion = base.NOVA_API_VERSION_CREATE_WITH_HOST
+    # Minimal version required for _create_instance with a specific host
+    min_microversion = '1.3'
+
+    GOAL = "unclassified"
+    STRATEGY = "actuator"
+
+    @classmethod
+    def skip_checks(cls):
+        super().skip_checks()
+        if not CONF.optimize.run_delete_shelve_action_tests:
+            raise cls.skipException(
+                "Delete and shelve action tests are not enabled."
+            )
+
+    def _run_actuator_action(self, actions):
+        """Submit actions through the actuator and wait for completion.
+
+        :param actions: list of action dicts to pass as audit parameters.
+        :returns: the finished action plan dict.
+        """
+        self.wait_for_all_action_plans_to_finish()
+
+        audit_template = self.create_audit_template_for_strategy()
+        audit = self.create_audit_and_wait(
+            audit_template['uuid'], parameters={"actions": actions})
+
+        _, action_plans = self.client.list_action_plans(
+            audit_uuid=audit['uuid'])
+        action_plan = action_plans['action_plans'][0]
+        _, action_plan = self.client.show_action_plan(action_plan['uuid'])
+
+        _, updated_ap = self.client.start_action_plan(action_plan['uuid'])
+        self.assertIn(updated_ap['state'], ('PENDING', 'ONGOING'))
+
+        self.assertTrue(test_utils.call_until_true(
+            func=functools.partial(
+                self.has_action_plan_finished, action_plan['uuid']),
+            duration=CONF.optimize.resource_timeout,
+            sleep_for=CONF.optimize.resource_check_interval
+        ))
+
+        _, finished_ap = self.client.show_action_plan(action_plan['uuid'])
+        return finished_ap
+
+    @decorators.attr(type=['strategy', 'actuator'])
+    @decorators.idempotent_id('b3f2a1c4-8e7d-4a90-bc12-5f6e3d9a0b47')
+    def test_delete_active_instance(self):
+        """Test that the delete action terminates an ACTIVE instance.
+
+        Creates an instance, submits a delete action through the actuator
+        strategy, and verifies the instance no longer exists after the
+        action plan succeeds.
+        """
+        self.check_min_enabled_compute_nodes(1)
+        self.addCleanup(self.wait_delete_instances_from_model)
+
+        source_host = self.get_enabled_compute_nodes()[0]['host']
+        instance = self._create_instance(source_host)
+        self.wait_for_instances_in_model([instance])
+
+        actions = [
+            {
+                "action_type": "delete",
+                "resource_id": instance['id'],
+                "input_parameters": {}
+            }
+        ]
+
+        finished_ap = self._run_actuator_action(actions)
+        self.assertIn(finished_ap['state'], ('SUCCEEDED', 'SUPERSEDED'))
+
+        # Verify the instance no longer exists
+        waiters.wait_for_server_termination(
+            self.mgr.servers_client, instance['id'])
+
+    @decorators.attr(type=['strategy', 'actuator'])
+    @decorators.idempotent_id('4070c0ec-43b1-41fc-9363-a5e8458cb87c')
+    def test_delete_skipped_when_instance_already_deleted(self):
+        """Test that the delete action is skipped when instance is gone.
+
+        Deletes the instance before executing the action plan. The
+        pre_condition check should detect the missing instance and mark
+        the action as SKIPPED, leaving the action plan in SUCCEEDED state.
+        """
+        self.check_min_enabled_compute_nodes(1)
+        self.addCleanup(self.wait_delete_instances_from_model)
+
+        source_host = self.get_enabled_compute_nodes()[0]['host']
+        instance = self._create_instance(source_host)
+        self.wait_for_instances_in_model([instance])
+
+        actions = [
+            {
+                "action_type": "delete",
+                "resource_id": instance['id'],
+                "input_parameters": {}
+            }
+        ]
+
+        self.wait_for_all_action_plans_to_finish()
+
+        audit_template = self.create_audit_template_for_strategy()
+        audit = self.create_audit_and_wait(
+            audit_template['uuid'], parameters={"actions": actions})
+
+        _, action_plans = self.client.list_action_plans(
+            audit_uuid=audit['uuid'])
+        action_plan = action_plans['action_plans'][0]
+        _, action_plan = self.client.show_action_plan(action_plan['uuid'])
+
+        # Delete the instance before the action plan is executed so the
+        # pre_condition finds it missing and skips the action.
+        self._delete_instance(instance['id'])
+
+        _, updated_ap = self.client.start_action_plan(action_plan['uuid'])
+        self.assertIn(updated_ap['state'], ('PENDING', 'ONGOING'))
+
+        self.assertTrue(test_utils.call_until_true(
+            func=functools.partial(
+                self.has_action_plan_finished, action_plan['uuid']),
+            duration=CONF.optimize.resource_timeout,
+            sleep_for=CONF.optimize.resource_check_interval
+        ))
+
+        _, finished_ap = self.client.show_action_plan(action_plan['uuid'])
+        _, action_list = self.client.list_actions(
+            action_plan_uuid=finished_ap['uuid'])
+
+        self.assertIn(finished_ap['state'], ('SUCCEEDED', 'SUPERSEDED'))
+
+        action_states = [a['state'] for a in action_list['actions']]
+        self.assertIn('SKIPPED', action_states)
+
+    @decorators.attr(type=['strategy', 'actuator'])
+    @decorators.idempotent_id('ef156ca9-50d3-45e6-83f4-d97bfa92e168')
+    def test_shelve_active_instance(self):
+        """Test that the shelve action shelves an ACTIVE instance.
+
+        Creates an instance, submits a shelve action through the actuator
+        strategy, and verifies the instance reaches SHELVED or
+        SHELVED_OFFLOADED state after the action plan succeeds.
+        """
+        self.check_min_enabled_compute_nodes(1)
+        self.addCleanup(self.wait_delete_instances_from_model)
+
+        source_host = self.get_enabled_compute_nodes()[0]['host']
+        instance = self._create_instance(source_host)
+        self.wait_for_instances_in_model([instance])
+
+        actions = [
+            {
+                "action_type": "shelve",
+                "resource_id": instance['id'],
+                "input_parameters": {}
+            }
+        ]
+
+        finished_ap = self._run_actuator_action(actions)
+        self.assertIn(finished_ap['state'], ('SUCCEEDED', 'SUPERSEDED'))
+
+        # Verify the instance is shelved or shelved_offloaded.
+        # Nova may offload immediately (e.g. with Ceph or BFV), so both
+        # states are valid postconditions.
+        instance_details = self.mgr.servers_client.show_server(
+            instance['id'])['server']
+        self.assertIn(
+            instance_details['status'], ('SHELVED', 'SHELVED_OFFLOADED'))
+
+    @decorators.attr(type=['strategy', 'actuator'])
+    @decorators.idempotent_id('752d84da-bb38-4cf2-8fb0-7bd1963dab21')
+    def test_shelve_skipped_when_instance_already_shelved(self):
+        """Test that the shelve action is skipped when instance is shelved.
+
+        Shelves the instance manually before executing the action plan.
+        The pre_condition check should detect the existing shelved state
+        and mark the action as SKIPPED, leaving the action plan SUCCEEDED.
+        """
+        self.check_min_enabled_compute_nodes(1)
+        self.addCleanup(self.wait_delete_instances_from_model)
+
+        source_host = self.get_enabled_compute_nodes()[0]['host']
+        instance = self._create_instance(source_host)
+        self.wait_for_instances_in_model([instance])
+
+        # Shelve the instance before the action plan runs so the
+        # pre_condition finds it already shelved and skips the action.
+        compute.shelve_server(self.mgr.servers_client, instance['id'])
+
+        actions = [
+            {
+                "action_type": "shelve",
+                "resource_id": instance['id'],
+                "input_parameters": {}
+            }
+        ]
+
+        finished_ap = self._run_actuator_action(actions)
+        self.assertIn(finished_ap['state'], ('SUCCEEDED', 'SUPERSEDED'))
+
+        _, action_list = self.client.list_actions(
+            action_plan_uuid=finished_ap['uuid'])
+        action_states = [a['state'] for a in action_list['actions']]
+        self.assertIn('SKIPPED', action_states)
+
+        # Verify instance is still in a shelved state
+        instance_details = self.mgr.servers_client.show_server(
+            instance['id'])['server']
+        self.assertIn(
+            instance_details['status'], ('SHELVED', 'SHELVED_OFFLOADED'))
+
+    @decorators.attr(type=['strategy', 'actuator'])
+    @decorators.idempotent_id('72c68eec-3223-4216-a984-902caca3cfb4')
+    def test_shelve_skipped_when_instance_not_found(self):
+        """Test that the shelve action is skipped when instance is gone.
+
+        Deletes the instance before executing the action plan. The
+        pre_condition check should detect the missing instance and mark
+        the action as SKIPPED, leaving the action plan in SUCCEEDED state.
+        """
+        self.check_min_enabled_compute_nodes(1)
+        self.addCleanup(self.wait_delete_instances_from_model)
+
+        source_host = self.get_enabled_compute_nodes()[0]['host']
+        instance = self._create_instance(source_host)
+        self.wait_for_instances_in_model([instance])
+
+        actions = [
+            {
+                "action_type": "shelve",
+                "resource_id": instance['id'],
+                "input_parameters": {}
+            }
+        ]
+
+        self.wait_for_all_action_plans_to_finish()
+
+        audit_template = self.create_audit_template_for_strategy()
+        audit = self.create_audit_and_wait(
+            audit_template['uuid'], parameters={"actions": actions})
+
+        _, action_plans = self.client.list_action_plans(
+            audit_uuid=audit['uuid'])
+        action_plan = action_plans['action_plans'][0]
+        _, action_plan = self.client.show_action_plan(action_plan['uuid'])
+
+        # Delete the instance before execution so pre_condition skips.
+        self._delete_instance(instance['id'])
+
+        _, updated_ap = self.client.start_action_plan(action_plan['uuid'])
+        self.assertIn(updated_ap['state'], ('PENDING', 'ONGOING'))
+
+        self.assertTrue(test_utils.call_until_true(
+            func=functools.partial(
+                self.has_action_plan_finished, action_plan['uuid']),
+            duration=CONF.optimize.resource_timeout,
+            sleep_for=CONF.optimize.resource_check_interval
+        ))
+
+        _, finished_ap = self.client.show_action_plan(action_plan['uuid'])
+        _, action_list = self.client.list_actions(
+            action_plan_uuid=finished_ap['uuid'])
+
+        self.assertIn(finished_ap['state'], ('SUCCEEDED', 'SUPERSEDED'))
+
+        action_states = [a['state'] for a in action_list['actions']]
+        self.assertIn('SKIPPED', action_states)

@@ -202,5 +202,12 @@ OptimizationGroup = [
              "properly skips or fails actions when preconditions "
              "are not met. Requires Watcher to support the action "
              "skipping feature."
+    ),
+    cfg.BoolOpt(
+        "run_delete_shelve_action_tests",
+        default=False,
+        help="Whether or not to run delete and shelve action tests. "
+             "These tests validate the actuator strategy's delete and "
+             "shelve actions, including precondition validation."
     )
 ]
