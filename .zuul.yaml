@@ -10,6 +10,8 @@
         - watcher-tempest-aetos
         - watcher-tempest-gnocchi
         - watcher-tempest-prometheus
+        - watcher-tempest-aetos-2026-2
+        - watcher-tempest-gnocchi-2026-2
         - watcher-tempest-aetos-2026-1
         - watcher-tempest-gnocchi-2026-1
         - watcher-tempest-aetos-2025-2
@@ -21,6 +23,8 @@
         - watcher-tempest-aetos
         - watcher-tempest-gnocchi
         - watcher-tempest-prometheus
+        - watcher-tempest-aetos-2026-2
+        - watcher-tempest-gnocchi-2026-2
         - watcher-tempest-aetos-2026-1
         - watcher-tempest-gnocchi-2026-1
         - watcher-tempest-aetos-2025-2
@@ -31,6 +35,17 @@
       jobs:
         - watcher-tempest-prometheus-realdata
         - watcher-tempest-aetos-realdata
+
+# stable/2026.2 jobs
+- job:
+    name: watcher-tempest-aetos-2026-2
+    parent: watcher-tempest-aetos
+    override-checkout: stable/2026.2
+
+- job:
+    name: watcher-tempest-gnocchi-2026-2
+    parent: watcher-tempest-gnocchi
+    override-checkout: stable/2026.2
 
 # stable/2026.1 jobs
 - job:
