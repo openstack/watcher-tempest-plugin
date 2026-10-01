@@ -215,7 +215,8 @@ class TestExecuteDeleteAndShelveActions(
 
     # Minimal version required for _create_instance with a specific host
     compute_min_microversion = base.NOVA_API_VERSION_CREATE_WITH_HOST
-    # Minimal version required for _create_instance with a specific host
+    # Minimal version required for waiting for instances in model using the
+    # datamodel list api
     min_microversion = '1.3'
 
     GOAL = "unclassified"
