@@ -19,6 +19,9 @@ from oslo_utils import uuidutils
 from tempest.lib import decorators
 from tempest.lib import exceptions
 
+from watcher_tempest_plugin.services.infra_optim.v1.json import (
+    api_microversion_fixture
+)
 from watcher_tempest_plugin.tests.api.admin import base
 
 
@@ -233,3 +236,84 @@ class TestAuditTemplate(base.BaseInfraOptimTest):
 
         _, body = self.client.show_audit_template(body['uuid'])
         self.assertEqual('description', body['description'])
+
+
+class TestAuditTemplateDefaultParameters(base.BaseInfraOptimTest):
+    """Tests for audit template default_parameters (API v1.7)."""
+
+    min_microversion = '1.7'
+
+    def setUp(self):
+        super().setUp()
+        _, self.goal = self.client.show_goal("dummy")
+        _, self.strategy = self.client.show_strategy("dummy")
+
+    @decorators.attr(type='smoke')
+    @decorators.idempotent_id('2253c638-194c-46dd-989f-b0f9b173e886')
+    def test_create_audit_template_with_default_parameters(self):
+        default_params = {'para1': 5.0}
+        _, body = self.create_audit_template(
+            goal=self.goal['uuid'],
+            strategy=self.strategy['uuid'],
+            default_parameters=default_params,
+        )
+
+        self.assertEqual(default_params, body['default_parameters'])
+
+        _, audit_template = self.client.show_audit_template(body['uuid'])
+        self.assertEqual(default_params, audit_template['default_parameters'])
+
+    @decorators.attr(type='smoke')
+    @decorators.idempotent_id('d21eb4db-123c-460e-91a8-78d6a66e4259')
+    def test_show_audit_template_default_parameters_hidden_old_microversion(
+            self):
+        default_params = {'para1': 5.0}
+        _, body = self.create_audit_template(
+            goal=self.goal['uuid'],
+            strategy=self.strategy['uuid'],
+            default_parameters=default_params,
+        )
+
+        # Retrieve with old microversion — field must be absent
+        self.useFixture(api_microversion_fixture.APIMicroversionFixture(
+            optimize_microversion='1.6'))
+        _, audit_template = self.client.show_audit_template(body['uuid'])
+        self.assertNotIn('default_parameters', audit_template)
+
+    @decorators.attr(type='smoke')
+    @decorators.idempotent_id('48de7d05-0ca7-4037-9292-9b0cfa213533')
+    def test_update_audit_template_default_parameters(self):
+        _, body = self.create_audit_template(
+            goal=self.goal['uuid'],
+            strategy=self.strategy['uuid'],
+            default_parameters={'para1': 3.0},
+        )
+
+        new_params = {'para1': 8.0}
+        patch = [{'path': '/default_parameters', 'op': 'replace',
+                  'value': new_params}]
+        self.client.update_audit_template(body['uuid'], patch)
+
+        _, updated = self.client.show_audit_template(body['uuid'])
+        self.assertEqual(new_params, updated['default_parameters'])
+
+    @decorators.attr(type='smoke')
+    @decorators.idempotent_id('f879e4f7-0b94-4015-9b8e-520346f2695e')
+    def test_create_audit_template_default_parameters_requires_strategy(self):
+        self.assertRaises(
+            exceptions.BadRequest,
+            self.client.create_audit_template,
+            goal=self.goal['uuid'],
+            default_parameters={'para1': 5.0},
+        )
+
+    @decorators.attr(type='smoke')
+    @decorators.idempotent_id('a3c1e8f2-7d4b-4f9e-bc02-1e5a6d8f3c07')
+    def test_create_audit_template_invalid_default_parameters_rejected(self):
+        self.assertRaises(
+            exceptions.BadRequest,
+            self.client.create_audit_template,
+            goal=self.goal['uuid'],
+            strategy=self.strategy['uuid'],
+            default_parameters={'para1': 5.0, 'fake_param': 'invalid'},
+        )

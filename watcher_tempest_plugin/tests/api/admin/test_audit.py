@@ -423,6 +423,57 @@ class TestCreateUpdateDeleteAuditV14(base.BaseInfraOptimTest):
         self.assertEqual(audit['state'], 'CANCELLED')
 
 
+class TestCreateAuditWithDefaultParameters(base.BaseInfraOptimTest):
+    """Tests for audit inheriting default_parameters from audit template."""
+
+    min_microversion = '1.7'
+
+    @decorators.attr(type='smoke')
+    @decorators.idempotent_id('2586951a-ce4c-4c10-8c61-ac673999010c')
+    def test_audit_inherits_template_default_parameters(self):
+        """Audit created from a template inherits default_parameters."""
+        _, goal = self.client.show_goal("dummy")
+        _, strategy = self.client.show_strategy("dummy")
+        default_params = {'para1': 5.0}
+
+        _, audit_template = self.create_audit_template(
+            goal['uuid'],
+            strategy=strategy['uuid'],
+            default_parameters=default_params,
+        )
+
+        _, body = self.create_audit(
+            audit_template['uuid'],
+            audit_type='ONESHOT',
+        )
+
+        for key, value in default_params.items():
+            self.assertEqual(value, body['parameters'][key])
+
+    @decorators.attr(type='smoke')
+    @decorators.idempotent_id('a340f036-0c6e-4bd5-a081-153265de013c')
+    def test_audit_parameters_override_template_defaults(self):
+        """Explicit audit parameters take precedence over template defaults."""
+        _, goal = self.client.show_goal("dummy")
+        _, strategy = self.client.show_strategy("dummy")
+
+        _, audit_template = self.create_audit_template(
+            goal['uuid'],
+            strategy=strategy['uuid'],
+            default_parameters={'para1': 3.0},
+        )
+
+        override_params = {'para1': 8.0}
+        _, body = self.create_audit(
+            audit_template['uuid'],
+            audit_type='ONESHOT',
+            parameters=override_params,
+        )
+
+        for key, value in override_params.items():
+            self.assertEqual(value, body['parameters'][key])
+
+
 class TestShowListAudit(base.BaseInfraOptimTest):
     """Tests for audit."""
 
