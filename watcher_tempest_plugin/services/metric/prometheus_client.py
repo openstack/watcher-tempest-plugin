@@ -82,7 +82,7 @@ class PromtoolClient:
             # podified control plane will run promtool inside
             # prometheus container
             self.prometheus_pod = self.get_prometheus_pod()
-            cmd_prefix = self.oc_cmd + ["rsh", self.prometheus_pod]
+            cmd_prefix = self.oc_cmd + ["exec", self.prometheus_pod, "--"]
             self.client.cmd_prefix = " ".join(cmd_prefix)
 
         # We keep the raw URL for reference/labels
